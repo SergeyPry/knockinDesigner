@@ -836,27 +836,6 @@ strategyCoords <- reactive({
   })  
     
     
-  output$labeledExons <- renderUI({
-    
-    isolate({ outputList <- codonMutations() })
-
-    # iterate each oligo design
-    lapply(1:length(outputList), function(i) {
-      
-      sequence <- outputList[[i]][["site_assay"]]
-      codonPos <- outputList[[i]][["codon_coords"]]
-      
-      
-      
-      HTML(paste("<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block;'>",
-                 "<strong>Oligo design with ID #", i, "</strong>",  "<br/>",
-                 substr(sequence, codonPos[1] - 1 - input$leftArmLength, codonPos[1] - 1),"<strong><font style='BACKGROUND-COLOR: #0000CC; color: white'>",
-                 substr(sequence, codonPos[1], codonPos[2]),"</font></strong>", substr(sequence, codonPos[2] + 1, codonPos[2] + 1 + input$rightArmLength),"</div>","<br/>", sep = ""))
-      
-    })
-   }) # end of renderUI
-  
-
   output$oligos <- renderUI({
     
     # obtain the output
