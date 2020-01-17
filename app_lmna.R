@@ -6,12 +6,16 @@ library(shiny)
 library(stringr)
 library(Biostrings)
 library(seqinr)
+library(DECIPHER)
+
 
 # Define UI for application that draws a histogram
 ui <- shinyUI(fluidPage(
   tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "bootstrap.css")),
               
-  headerPanel(h1("CRISPR Knock-in Designer")),
+  #headerPanel(h1("CRISPR Knock-in Designer")),
+  
+  HTML('<button type="button" class="btn btn-primary btn-lg btn-block" style="width: 100%; font-size: 24px; text-transform: none;">CRISPR knockinDesigner</button>'),
  
   sidebarLayout(
       sidebarPanel(
@@ -77,7 +81,17 @@ ui <- shinyUI(fluidPage(
                            choices = list("sense" = "sense", "antisense" = "anti"), selected = "sense"))
         
       ),
+
+      fluidRow(
+        
+        column(6, radioButtons("mutatePAM", "Synonymous codon mutations of PAM or sgRNA spacer?",
+                               c("Yes" = "yes", "No" = "no"))),
+        column(6, radioButtons("REsites", "Introduce restriction enzyme sites by synonymous codon mutations?",
+                               c("Yes" = "yes", "No" = "no")))
+        
+      ),
       
+            
       actionButton("run", "Submit")
       ), # end of sidebarPanel
       
@@ -89,7 +103,7 @@ ui <- shinyUI(fluidPage(
         
         uiOutput('resultsHeader'),
         
-        uiOutput('oligos')
+        uiOutput('finalOligos')
         
       )
     )
@@ -119,7 +133,95 @@ server <- function(input, output) {
     REV_GENETIC_CODE[[as.character(GENETIC_CODE[codon])]] <- c(REV_GENETIC_CODE[[as.character(GENETIC_CODE[codon])]], codon)
   }
   
-  # knockinDesign function will be used to calculate all the mutations needed to be present in oligos
+  # define a list with restriction site information
+  enzymes <- read.csv("NEB_enzymes.csv", sep = "\t")
+  
+  RE_SITES <- list()
+  
+  for(i in rownames(enzymes)){
+    enz = as.character(enzymes[i,]$Enzyme)
+    
+    RE_SITES[[enz]] = list()
+    RE_SITES[[enz]][["Sequence"]] <- enzymes[i,]$Sequence
+    RE_SITES[[enz]][["RE_site"]] <- enzymes[i,]$RE_site
+    
+  }
+  
+  
+  
+  # function to calculate which enzymes are non-cutters
+  getNonCutters <- function(all_enzymes, dna){
+    
+    # initialize the vector to return
+    non_cutters <- c()
+    
+    # convert dna to character string with capital letters
+    dna <- toupper(dna)
+    
+    # generate a reverse complement of the input DNA
+    rc_dna <- as.character(reverseComplement(DNAString(dna)))
+    
+    # iterate over all enzymes and check whether it cuts the input sequence
+    for(enzyme in all_enzymes){
+      site <- as.character(RE_SITES[[enzyme]]$RE_site)
+      
+      # str_detect is FALSE when the site is not present
+      if(!str_detect(dna, site) & !str_detect(rc_dna, site) ){
+        non_cutters <- c(non_cutters, enzyme)
+      }
+      
+    }
+    
+    non_cutters 
+  }
+  
+  
+  # function to identify how many enzymes now manage to cut if one of the codons is mutated
+  getCutters <- function(non_cutter_enzymes, dna_piece){
+    
+    # vector to store the enzymes that manage to cut the sequence after mutation
+    cutters <- c()
+    
+    # ensure that DNA is a string 
+    dna <- toupper(dna_piece)
+    
+    # generate a reverse complement of the input DNA
+    rc_dna <- as.character(reverseComplement(DNAString(dna)))
+    
+    # iterate over all non-cutter enzymes
+    for(enzyme in non_cutter_enzymes){
+      
+      site <- as.character(RE_SITES[[enzyme]]$RE_site)
+      
+      # str_detect is TRUE when the site is present in either strand
+      if( str_detect(dna, site) | str_detect(rc_dna, site)){
+        cutters <- c(cutters, enzyme)
+      }
+      
+    } # end of non_cutter enzyme for loop
+    
+    cutters
+  }  
+  
+  # test_list is the list of the vectors of
+  # same structure as the vector vec
+  vector_in_list <- function(test_list, vec){
+    # basic function to compare identity of one vector 
+    # with another
+    f1 <- function(x,y) all(x==y)  
+    
+    # first, if the list is empty, return FALSE
+    if(length(test_list) == 0){
+      return(FALSE)
+      
+    } else { # check if there is the same vector in the list as the query vector
+      # logical result if one of the vectors matches
+      return(any(mapply(f1, test_list, list(vec))))
+      
+    }
+    
+  }
+  
 
   
 # this function will calculate the positions of all relevant items in the local genomic string
@@ -780,6 +882,15 @@ codonMutations <- reactive({
             PAM_mutated[[ID]][["sgRNA_mutations"]] <- TRUE
             PAM_mutated[[ID]][["sgRNA_mut_codon_diffs"]] <- sgRNA_mutations
             
+            # add the codons that were mutated when generating sgRNA 
+            if(OverlapCodon1[1] != coords$codon[1]){
+              PAM_mutated[[ID]][["sgRNA_mut_codon_overlap1"]] <- OverlapCodon1   
+            }
+            
+            if(OverlapCodon2[1] != coords$codon[1]){
+              PAM_mutated[[ID]][["sgRNA_mut_codon_overlap2"]] <- OverlapCodon2   
+            }
+            
             # update the ID counter
             ID <- ID + 1
             
@@ -824,6 +935,542 @@ codonMutations <- reactive({
   
   REsite_silent_mutations <- reactive({
     
+    # create a list for output
+    output_REsites <- list()
+    
+    # main a counter variable
+    ID <- 1
+    
+    
+    ##############################################
+    # coordinates extraction 
+    ##############################################
+    
+    # get the coordinates of sgRNA and PAM which would be 
+    # common to all mutations
+    coords <-strategyCoords()
+    
+    codonPos <- coords[["codon"]]
+    exonPos <- coords[["exon"]]
+    exonStart <- exonPos[1]
+    exonEnd <- exonPos[2]
+    
+    # sgRNA spacer
+    sgRNA_pos <- coords[["sgRNA"]]
+    
+    # PAM
+    pam_pos <- coords[["PAM"]]
+    
+    # extract the original sequence
+    wt_seq <- coords[["sequence"]]
+    
+    # primers
+    forw_primer_pos <- coords[["forw_primer"]]
+    rev_primer_pos <- coords[["rev_primer"]] 
+    
+    ###########################################
+    # conversion step
+    ###########################################
+    
+    # subset the full sequence to that amplified by primers
+    wt_site_assay <- substr(wt_seq, forw_primer_pos[1], rev_primer_pos[2])
+    
+    # offset all the positions
+    offset <- forw_primer_pos[1] -1 # the length of the sequence before the primer
+    
+    codonPos <- codonPos - offset
+    exonPos <- exonPos - offset
+    exonStart <- exonStart - offset
+    exonEnd <- exonEnd - offset
+    
+    # sgRNA spacer
+    sgRNA_pos <- sgRNA_pos - offset
+    
+    # PAM
+    pam_pos <- pam_pos - offset
+    
+    # primer positions
+    forw_primer_pos <- forw_primer_pos - offset
+    rev_primer_pos <- rev_primer_pos - offset
+    
+    ###############################################
+    # find non-cutter enzymes in the wt_site_assay
+    ###############################################
+    
+    # load restriction enzyme data
+    all_enzymes <- names(RE_SITES)
+    
+    # compute the non-cutter enzymes
+    non_cutters <- getNonCutters(all_enzymes, wt_site_assay)
+    
+    
+    ##################################################################
+    # main part of the function - processing previous designs 
+    # to introduce restriction sites by synonymous mutations
+    ##################################################################
+    
+    # get the previously mutated site assays to introduce either PAM or sgRNA mutations
+    pam_muts <- PAM_mutations()
+    
+    for(item in pam_muts){
+      
+      #################################################
+      # extract relevant parts of item and offset them
+      # subset the sequence to the site assay
+      # store coordinates of mutated codons
+      #################################################
+      
+      # get full genomicString sequence and subset to the sequence spanned by primers
+      # use the old coordinates since the sequence in item is the full genomicString
+      # offset is added to get the old coordinates
+      mut_site_assay <- substr(item[["site_assay"]], forw_primer_pos[1] + offset, rev_primer_pos[2] + offset)
+      
+      # make a reverse complement of the mut_site_assay
+      rc_mut_site_assay <- as.character(reverseComplement(DNAString(mut_site_assay)))
+      
+      # copy the previous contents of the list from PAM_mutations() output
+      new_codon <- item[["new_codon"]]
+      AA_mut <- item[["AA_mutation"]]
+      codon_coords <- item[["codon_coords"]] - offset
+      codon_diffs_coords <- item[["codon_diffs_coords"]] - offset
+      
+      # start a list for all additional mutated codons
+      mutated_codons <- list() # the list will contain the coordinate vectors of already mutated codons
+      codon_id <- 1
+      
+      # check if PAM was mutated and add the coordinates to the list
+      # store the other parameters of the mutation in variables
+      if(item[["PAM_mutant_codon"]] != "none"){
+        
+        PAM_mutant_codon <- item[["PAM_mutant_codon"]]
+        PAM_mut_codon_coords <- item[["PAM_mut_codon_coords"]] - offset # offset coordinates
+        
+        # store the mutated PAM codon in the mutated_codons list
+        mutated_codons[[codon_id]] <- PAM_mut_codon_coords
+        codon_id <- codon_id + 1
+        
+        # assign the sequence differences resulting from the PAM-related mutation
+        # to a variable
+        PAM_mut_codon_diffs <- item[["PAM_mut_codon_diffs"]] - offset
+      
+      } else{
+        PAM_mutant_codon <- item[["PAM_mutant_codon"]]
+      } # end of if-else statement for PAM mutation
+      
+      
+      # check if there were any sgRNA mutations and store their parameters in variables
+      if(item[["sgRNA_mutations"]]){
+        
+        # store all mutation difference
+        sgRNA_mut_codon_diffs <- item[["sgRNA_mut_codon_diffs"]] - offset
+        
+        # check that and which overlap codons are present in the data  
+        if( !is.null( item[["sgRNA_mut_codon_overlap1"]] ) ){
+          sgRNA_mut_codon_overlap1 <- item[["sgRNA_mut_codon_overlap1"]] - offset
+          
+          mutated_codons[[codon_id]] <- sgRNA_mut_codon_overlap1
+          codon_id <- codon_id + 1
+        }
+        
+
+        if( !is.null( item[["sgRNA_mut_codon_overlap2"]] ) ){
+          sgRNA_mut_codon_overlap2 <- item[["sgRNA_mut_codon_overlap2"]] - offset
+          
+          mutated_codons[[codon_id]] <- sgRNA_mut_codon_overlap2
+          codon_id <- codon_id + 1
+        
+        }
+        
+      } # end of sgRNA mutations statements
+      # end of mutate codon storage
+      
+      ############################################################
+      # test if existing mutations generate restriction sites
+      ############################################################
+      
+      # make a flag variable to keep track of finding sites that 
+      # have been introduced
+      SITES_EXIST_FLAG <- FALSE
+      
+      # subset the site assay to a small 30-nt string for testing
+      cur_test_string <- substr(mut_site_assay, codon_coords[1] - 15, codon_coords[1] + 18)
+      
+      # run a function to get all enzymes that cut 
+      cutters <- getCutters(non_cutters, cur_test_string)
+      
+      # iterate over enzymes that cut the test string around the codon
+      if(length(cutters) > 0){
+        
+        # sites found, so update the flag variable
+        SITES_EXIST_FLAG <- TRUE
+        
+        # iterate over each enzyme to get the site coordinates and store the results
+        for(cutterEnzyme in cutters){
+          
+          # get cut site
+          cut_site <- as.character(RE_SITES[[cutterEnzyme]]$RE_site)
+          
+          # test if the cut site in the cut site is in the main ("forward") strand
+          if(str_detect(toupper(mut_site_assay), cut_site)){
+            
+            # get coordinates
+            site_coords <- c(str_locate(toupper(mut_site_assay), cut_site))    
+            
+          }else{
+            # get coordinates
+            site_coords <- c(rev(nchar(rc_mut_site_assay) - str_locate(toupper(rc_mut_site_assay), cut_site) + 1))    
+          }
+          
+        
+          #########################################
+          # STORAGE OF RESULTS TO THE OUTPUT LIST
+          #########################################
+          
+          # initiate the list for this ID
+          output_REsites[[ID]] = list()
+          
+          # store the current site assay
+          output_REsites[[ID]][["site_assay"]] <- mut_site_assay
+
+          # store data on the main codon mutation
+          output_REsites[[ID]][["new_codon"]] <- new_codon
+          output_REsites[[ID]][["AA_mutation"]] <- AA_mut
+          output_REsites[[ID]][["codon_coords"]] <- codon_coords
+          output_REsites[[ID]][["codon_diffs_coords"]] <- codon_diffs_coords
+          
+          # add the information on PAM mutations to the new output data structure
+          if(item[["PAM_mutant_codon"]] != "none"){
+            
+            output_REsites[[ID]][["PAM_mutant_codon"]] <- PAM_mutant_codon
+            output_REsites[[ID]][["PAM_mut_codon_coords"]] <- PAM_mut_codon_coords            
+            output_REsites[[ID]][["PAM_mut_codon_diffs"]] <- PAM_mut_codon_diffs                  
+            output_REsites[[ID]][["sgRNA_mutations"]] <- FALSE
+            
+          } else{
+            
+            output_REsites[[ID]][["PAM_mutant_codon"]] <- "none"
+            
+          } # end of if-else statement for PAM mutation
+          
+          # check if there were any sgRNA mutations and store their parameters in variables
+          if(item[["sgRNA_mutations"]]){
+            
+            # store an indicator for sgRNA_mutations
+            output_REsites[[ID]][["sgRNA_mutations"]] <- item[["sgRNA_mutations"]]
+            
+            # store all mutation difference
+            output_REsites[[ID]][["sgRNA_mut_codon_diffs"]] <- sgRNA_mut_codon_diffs
+            
+            # check that and which overlap codons are present in the data  
+            if( !is.null( item[["sgRNA_mut_codon_overlap1"]] ) ){
+              output_REsites[[ID]][["sgRNA_mut_codon_overlap1"]] <- sgRNA_mut_codon_overlap1
+            }
+  
+            if( !is.null( item[["sgRNA_mut_codon_overlap2"]] ) ){
+              output_REsites[[ID]][["sgRNA_mut_codon_overlap2"]] <- sgRNA_mut_codon_overlap2
+            }
+            
+          } else{
+
+            # store an indicator for sgRNA_mutations
+            output_REsites[[ID]][["sgRNA_mutations"]] <- item[["sgRNA_mutations"]]            
+            
+          } # end of sgRNA mutations statements                    
+
+          # store the restriction site information
+          output_REsites[[ID]][["RE_enzyme"]] <- cutterEnzyme
+          output_REsites[[ID]][["RE_site"]] <- RE_SITES[[cutterEnzyme]]$Sequence
+          output_REsites[[ID]][["RE_site_coords"]] <- site_coords
+
+          # update ID
+          ID <- ID + 1
+          
+        } # end of cutters for loop
+        
+      } # end of if statement  for testing how many enzymes cut the sequence
+      
+      ###############################################
+      # existing mutations do not introduce any sites
+      
+      if( !SITES_EXIST_FLAG){
+        
+        # flag for introducing a site by a synonymous mutation
+        REsite_BY_MUTATION <- FALSE
+        
+        
+        #############################################################
+        # codon selection for mutating to introduce restriction sites
+        #############################################################
+        
+        ################################################################
+        # The idea: test up to 3 codons on each side of the target codon
+        # taking each time a codon on the left side or right side
+        # test them for NOT being inside the mutated codon list and for being WITHIN the exon,
+        # update the respective codon pointers and if the test was positive, add the codons to the list
+        # for the candidates to be mutated
+        
+        
+        # list for codons to be mutated
+        codons2mut4REsites <- list()
+        sel_codon_id <- 1
+        
+        # total number 
+        num_checked <- 0
+        
+        # make pointers
+        left_pointer <- 1
+        right_pointer <- 1
+        
+        
+        # loop to iterate over potential codons
+        while(length(codons2mut4REsites) <= 3 & num_checked < 6 ){
+          
+          # select a codon 5' (left) from the target codon
+          leftCodon <- codonPos - left_pointer*3
+          
+          # update num_checked variable
+          num_checked <- num_checked + 1
+          left_pointer <- left_pointer + 1
+          
+          # check if this codon is OK
+          if( !vector_in_list(mutated_codons, leftCodon) & (leftCodon[1] >=  exonStart) ){
+            
+            codons2mut4REsites[[sel_codon_id]] <- leftCodon
+            sel_codon_id <- sel_codon_id + 1
+            
+          }          
+
+          
+          # select a codon 3' (right) from the target codon
+          rightCodon <- codonPos + right_pointer*3
+          
+          # update num_checked variable and the pointer
+          num_checked <- num_checked + 1
+          right_pointer <- right_pointer + 1
+          
+          # check if this codon is OK
+          if( !vector_in_list(mutated_codons, rightCodon) & (rightCodon[1] <=  exonEnd) ){
+            
+            codons2mut4REsites[[sel_codon_id]] <- rightCodon
+            sel_codon_id <- sel_codon_id + 1
+            
+          }          
+          
+                    
+        } # end of while loop for finding codons to be mutated
+        
+        
+        ###########################################################
+        # synonymous mutations in the selected codons
+        # and evaluation of non-cutters on the new mutant sequences
+        ###########################################################
+        
+        # iterate over all potential codons to be selected
+        for(codon in codons2mut4REsites){
+          
+          # find the non-identical synonymous codons
+          selCodonSeq = toupper(substr(mut_site_assay, codon[1], codon[2]))
+          
+          # get all possible codons for the encoded amino acid
+          aa_codons = REV_GENETIC_CODE[[ GENETIC_CODE[[selCodonSeq]] ]]
+          
+          # get codons that are not identical to the current codon
+          codons_not_same = aa_codons[aa_codons != selCodonSeq]
+          
+          # perform all possible synonymous codon replacements
+          for(codon_nonID in codons_not_same){
+            
+            # make a mutant site assay version, store in a temp variable not to interfere with subsequent steps
+            mut_cds <- paste(substr(mut_site_assay, 1, codon[1]-1), codon_nonID, substr(mut_site_assay, codon[2] + 1, nchar(mut_site_assay)), sep = "")
+            
+            # make a reverse complement of the mut_cds
+            rc_mut_cds <- as.character(reverseComplement(DNAString(mut_cds)))
+            
+            # subset the site assay to a small 30-nt string for testing
+            cur_test_string <- substr(mut_cds, codon[1] - 10, codon[1] + 13)
+          
+            # run a function to get all enzymes that cut 
+            cutters <- getCutters(non_cutters, cur_test_string)
+            
+            #####################################
+            # CUT IS SUCCESSFUL
+            #####################################
+            
+            if(length(cutters) > 0){
+
+              # update the flag variable
+              REsite_BY_MUTATION <- TRUE
+              
+              
+              # iterate over each enzyme to get the site coordinates and store the results
+              for(cutterEnzyme in cutters){
+              
+                # get cut site
+                cut_site <- as.character(RE_SITES[[cutterEnzyme]]$RE_site)
+                
+                # test if the cut site in the cut site is in the main ("forward") strand
+                if(str_detect(toupper(mut_cds), cut_site)){
+                  
+                  # get coordinates
+                  site_coords <- c(str_locate(toupper(mut_cds), cut_site))    
+                  
+                }else{
+                  # get coordinates
+                  site_coords <- c(rev(nchar(rc_mut_cds) - str_locate(toupper(rc_mut_cds), cut_site) + 1 ))    
+                }
+                
+                #########################################
+                # STORAGE OF RESULTS TO THE OUTPUT LIST
+                #########################################
+              
+                # initiate the list for this ID
+                output_REsites[[ID]] = list()
+              
+                # store the current site assay
+                output_REsites[[ID]][["site_assay"]] <- mut_cds
+              
+                # store data on the main codon mutation
+                output_REsites[[ID]][["new_codon"]] <- new_codon
+                output_REsites[[ID]][["AA_mutation"]] <- AA_mut
+                output_REsites[[ID]][["codon_coords"]] <- codon_coords
+                output_REsites[[ID]][["codon_diffs_coords"]] <- codon_diffs_coords
+              
+                # add the information on PAM mutations to the new output data structure
+                if(item[["PAM_mutant_codon"]] != "none"){
+                  
+                  output_REsites[[ID]][["PAM_mutant_codon"]] <- PAM_mutant_codon
+                  output_REsites[[ID]][["PAM_mut_codon_coords"]] <- PAM_mut_codon_coords            
+                  output_REsites[[ID]][["PAM_mut_codon_diffs"]] <- PAM_mut_codon_diffs                  
+                  output_REsites[[ID]][["sgRNA_mutations"]] <- FALSE
+                  
+                } else{
+                  
+                  output_REsites[[ID]][["PAM_mutant_codon"]] <- "none"
+                  
+                } # end of if-else statement for PAM mutation
+              
+                # check if there were any sgRNA mutations and store their parameters in variables
+                if(item[["sgRNA_mutations"]]){
+                  
+                  # store the sgRNA_mutations indicator
+                  output_REsites[[ID]][["sgRNA_mutations"]] <- item[["sgRNA_mutations"]]
+                  
+                  # store all mutation difference
+                  output_REsites[[ID]][["sgRNA_mut_codon_diffs"]] <- sgRNA_mut_codon_diffs
+                  
+                  # check that and which overlap codons are present in the data  
+                  if( !is.null( item[["sgRNA_mut_codon_overlap1"]] ) ){
+                    output_REsites[[ID]][["sgRNA_mut_codon_overlap1"]] <- sgRNA_mut_codon_overlap1
+                  }
+                  
+                  if( !is.null( item[["sgRNA_mut_codon_overlap2"]] ) ){
+                    output_REsites[[ID]][["sgRNA_mut_codon_overlap2"]] <- sgRNA_mut_codon_overlap2
+                  }
+                  
+                } else{
+                  # store the sgRNA_mutations indicator
+                  output_REsites[[ID]][["sgRNA_mutations"]] <- item[["sgRNA_mutations"]]
+                  
+                } # end of sgRNA mutations statements                    
+              
+              # store the restriction site information
+              output_REsites[[ID]][["RE_enzyme"]] <- cutterEnzyme
+              output_REsites[[ID]][["RE_site"]] <- RE_SITES[[cutterEnzyme]]$Sequence
+              output_REsites[[ID]][["RE_site_coords"]] <- site_coords
+              
+              # store sequence changes that led to the site introduction
+              output_REsites[[ID]][["RE_site_codon"]] <- codon_nonID 
+              output_REsites[[ID]][["RE_site_codon_coords"]] <- codon
+              output_REsites[[ID]][["RE_site_codon_diffs"]] <- getCoordinatesDiffs(codon_nonID, selCodonSeq, codon[1])   
+              
+              
+              # update ID
+              ID <- ID + 1
+              
+            } # end of cutters for loop
+            
+          } # end of if statement  for testing how many enzymes cut the sequence
+
+          } # end of the for loop over synonymous codons
+  
+        } # end of for loop over codons2mut4REsites
+        
+      } # end of if block the case SITES_EXIST_FLAG is FALSE
+    
+      ###############################################################################
+      # Evaluation if the current item was mutated to introduce any restriction sites
+      ###############################################################################
+      
+      # the condition below is TRUE when no sites have been introduced by mutations
+      if( !REsite_BY_MUTATION ){
+        
+        #########################################
+        # STORAGE OF RESULTS TO THE OUTPUT LIST
+        #########################################
+        
+        # initiate the list for this ID
+        output_REsites[[ID]] = list()
+        
+        # store the current site assay
+        output_REsites[[ID]][["site_assay"]] <- mut_site_assay
+        
+        # store data on the main codon mutation
+        output_REsites[[ID]][["new_codon"]] <- new_codon
+        output_REsites[[ID]][["AA_mutation"]] <- AA_mut
+        output_REsites[[ID]][["codon_coords"]] <- codon_coords
+        output_REsites[[ID]][["codon_diffs_coords"]] <- codon_diffs_coords
+        
+        # add the information on PAM mutations to the new output data structure
+        if(item[["PAM_mutant_codon"]] != "none"){
+          
+          output_REsites[[ID]][["PAM_mutant_codon"]] <- PAM_mutant_codon
+          output_REsites[[ID]][["PAM_mut_codon_coords"]] <- PAM_mut_codon_coords            
+          output_REsites[[ID]][["PAM_mut_codon_diffs"]] <- PAM_mut_codon_diffs                  
+          output_REsites[[ID]][["sgRNA_mutations"]] <- FALSE
+          
+        } else{
+          
+          output_REsites[[ID]][["PAM_mutant_codon"]] <- "none"
+          
+        } # end of if-else statement for PAM mutation
+        
+        # check if there were any sgRNA mutations and store their parameters in variables
+        if(item[["sgRNA_mutations"]]){
+          
+          # store an indicator for sgRNA_mutations
+          output_REsites[[ID]][["sgRNA_mutations"]] <- item[["sgRNA_mutations"]]
+          
+          # store all mutation difference
+          output_REsites[[ID]][["sgRNA_mut_codon_diffs"]] <- sgRNA_mut_codon_diffs
+          
+          # check that and which overlap codons are present in the data  
+          if( !is.null( item[["sgRNA_mut_codon_overlap1"]] ) ){
+            output_REsites[[ID]][["sgRNA_mut_codon_overlap1"]] <- sgRNA_mut_codon_overlap1
+          }
+          
+          if( !is.null( item[["sgRNA_mut_codon_overlap2"]] ) ){
+            output_REsites[[ID]][["sgRNA_mut_codon_overlap2"]] <- sgRNA_mut_codon_overlap2
+          }
+          
+        } else{
+          
+          # store an indicator for sgRNA_mutations
+          output_REsites[[ID]][["sgRNA_mutations"]] <- item[["sgRNA_mutations"]]            
+          
+        } # end of sgRNA mutations statements                    
+        
+        # indicate that no restriction sites have been found
+        output_REsites[[ID]][["RE_site"]] <- "none"
+        
+        # update ID
+        ID <- ID + 1
+        
+      } # end of if statement for REsite_BY_MUTATION flag variable test 
+      
+    }# end of for loop over PAM_mutations designs
+    
+    # return the output data structure
+    return(output_REsites)
   })
   
   
@@ -839,7 +1486,7 @@ codonMutations <- reactive({
       isolate({ coords <- strategyCoords() })
       
       # initialize the string for HTML output
-      outputHTML <- '<button type="button" class="btn btn-primary" style="width: 100%; font-size: 20px">Targeting strategy outline:</button><div class="jumbotron", style="width: 100%; word-wrap:break-word; display:inline-block;">'
+      outputHTML <- '<br/><button type="button" class="btn btn-primary" style="width: 100%; font-size: 20px">Targeting strategy outline:</button><div class="jumbotron", style="width: 100%; word-wrap:break-word; display:inline-block;">'
       
       # process the input data to add codes to the codon, sgRNA and PAM positions
       # the primer and intervening positions can be added in a regular way
@@ -968,13 +1615,13 @@ codonMutations <- reactive({
     HTML(outputHTML)
   })  
     
-    
+  # a function to output oligos with PAM mutations
   output$oligos <- renderUI({
     
     # obtain the output
     isolate({ outputList <- PAM_mutations() })
     
-
+    
     # obtain the data on the overall strategy
     # make sure the reactive code only runs when you press "Submit" button
     isolate({ coords <- strategyCoords() })
@@ -983,9 +1630,7 @@ codonMutations <- reactive({
     codon_pos <- coords[["codon"]][1]: coords[["codon"]][2]
     pam_pos <- coords[["PAM"]][1]: coords[["PAM"]][2]
     
-    # generate coordinates for oligo start and end 
-    
-    
+
     # iterate each oligo design
     lapply(1:length(outputList), function(i) {
       
@@ -1178,10 +1823,252 @@ codonMutations <- reactive({
   
     }) # end of renderUI
   
+  # a function to output oligos with introduced restriction sites
+  output$finalOligos <- renderUI({
+    
+    # obtain the output
+    isolate({ outputList <- REsite_silent_mutations() })
+    
+  
+    # obtain the data on the overall strategy
+    # make sure the reactive code only runs when you press "Submit" button
+    isolate({ coords <- strategyCoords() })
+    
+    # generate the vectors of all important positions
+    codon_pos <- coords[["codon"]][1]: coords[["codon"]][2]
+    pam_pos <- coords[["PAM"]][1]: coords[["PAM"]][2]
+    
+    # offset the coordinates for PAM and codon
+    forw_primer_pos <- coords[["forw_primer"]]
+    offset <- forw_primer_pos[1] -1
+    
+    codon_pos <- codon_pos - offset
+    pam_pos <- pam_pos - offset
+    
+  
+    # iterate each oligo design
+    lapply(1:length(outputList), function(j) {
+      
+      # get sequence
+      sequence <- toupper(outputList[[j]][["site_assay"]])
+      
+      # collect all mutated positions
+      mutated <- c()
+      PAM_muts <- c()
+      sgRNA_muts <- c()
+      REsite_muts <- c()
+      
+      # codon mutations
+      codon_muts <- outputList[[j]][["codon_diffs_coords"]]
+      
+      # get PAM mutations is they are available
+      if(outputList[[j]][["PAM_mutant_codon"]] != "none"){
+        
+        PAM_muts <- outputList[[j]][["PAM_mut_codon_diffs"]]
+        
+      }
+      
+      # get sgRNA mutations
+      if(outputList[[j]][["sgRNA_mutations"]]){
+        
+        sgRNA_muts <- outputList[[j]][["sgRNA_mut_codon_diffs"]] 
+        
+      }     
+      
+      # get the codon mutation that introduced a restriction site
+      if(outputList[[j]][["RE_site"]] != "none"){
+        
+        REsite_muts <- outputList[[j]][["RE_site_codon_diffs"]] 
+        
+      } 
+      
+      # combine all mutations
+      mutated <- c(codon_muts, PAM_muts, sgRNA_muts, REsite_muts)
+      
+      
+      
+      # reverseComplement the sequence if the orientation is different
+      if(input$orientedOligo == "anti"){
+        
+        # update the sequence
+        sequence <- toString(reverseComplement(DNAString(sequence)))
+        
+        # update all position vectors 
+        # new_pos = nchar(sequence) - pos + 1
+        codon_pos <- nchar(sequence) - rev(codon_pos) + 1
+        pam_pos <- nchar(sequence) - rev(pam_pos) + 1
+        
+        # update the mutation positions
+        mutated <- nchar(sequence) - rev(mutated) + 1
+        codon_muts <- nchar(sequence) - rev(codon_muts) + 1
+        PAM_muts <- nchar(sequence) - rev(PAM_muts) + 1
+        sgRNA_muts <- nchar(sequence) - rev(sgRNA_muts) + 1      
+        
+      }
+      
+      # organize all mutated positions into a single vector
+      all_special_pos <- sort(unique(c(codon_pos, pam_pos,mutated)))
+      
+      
+      # define the start and end of oligos for the purposes of correct output
+      if(input$orientedOligo == "sense"){
+        
+        # define the start and end of oligo coordinates
+        oligoStart <- pam_pos[1] - 4 - input$leftArmLength
+        oligoEnd <- pam_pos[1] - 4 + input$rightArmLength
+        
+      }else{
+        
+        # define the start and end of oligo coordinates
+        oligoStart <- pam_pos[2] + 3 - input$leftArmLength 
+        oligoEnd <- pam_pos[2] + 3 + input$rightArmLength 
+        
+        
+      }
+      
+      # consider checking whether start and end of the oligo are less and more than any labeled positions
+      # in the sequence and then updating them accordingly
+      # Also check that neither of the coordinates is negative or beyond the sequence length,
+      # change them accordingly
+      
+      # TO DO: Develop a robust tabbed interface to show designs for different codons
+      
+      
+      
+      # initialize the output HTML
+      outputHTML <- HTML(paste("<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block;'>",
+                               "<strong>Oligo design with ID #", j, "</strong>",  "<br/>", sep = ""))
+      
+      # add the sequence between the oligo start and just before any of the labeled positions
+      outputHTML <- paste(outputHTML, substr(sequence, oligoStart, all_special_pos[1]-1), sep="")
+      
+      # iterate over all labeled positions and add their 
+      for(i in all_special_pos[1]: all_special_pos[length(all_special_pos)]){
+        
+        # Positions to be labeled
+        if(i %in% all_special_pos){
+          ###########################################
+          # Codon but NOT PAM 
+          if( (i %in% codon_pos) && !(i %in% pam_pos) ){
+            
+            # simple yellow background of letter
+            if( i %in% mutated){
+              outputHTML <- paste(outputHTML,"<strong><font style='BACKGROUND-COLOR: yellow; color: red'>",
+                                  substr(sequence, i,i), "</font></strong>", sep="")            
+              
+            }else{
+              outputHTML <- paste(outputHTML,"<strong><font style='BACKGROUND-COLOR: yellow'>",
+                                  substr(sequence, i,i), "</font></strong>", sep="")            
+            }
+            
+            
+          }
+          
+          ###########################################
+          # codon and PAM
+          if( (i %in% codon_pos) && (i %in% pam_pos) ){
+            
+            
+            # simple yellow background of letter
+            if( i %in% mutated){ # the position is mutated
+              
+              # yellow background of letter + underlined text + RED text
+              outputHTML <- paste(outputHTML,"<u><strong><font style='BACKGROUND-COLOR: yellow; color: red'>",
+                                  substr(sequence, i,i), "</font></strong></u>", sep="")
+              
+            }else{
+              
+              # yellow background of letter + underlined text + RED text
+              outputHTML <- paste(outputHTML,"<u><strong><font style='BACKGROUND-COLOR: yellow; color: #000080'>",
+                                  substr(sequence, i,i), "</font></strong></u>", sep="")
+              
+            }           
+            
+          }
+          
+          ###########################################
+          # PAM NOT codon
+          
+          if( (i %in% pam_pos) && !(i %in% codon_pos) ){
+            
+            if( i %in% mutated){
+              
+              # underlined + blue text
+              outputHTML <- paste(outputHTML,"<u><strong><font style='color: red'>", substr(sequence, i,i), "</font></strong></u>", sep="")
+            }else{
+              
+              # underlined + blue text
+              outputHTML <- paste(outputHTML,"<u><strong><font style='color: #000080'>", substr(sequence, i,i), "</font></strong></u>", sep="")
+              
+            }
+            
+            
+          }
+          
+          ###########################################
+          # neither Codon nor PAM position
+          
+          if( !(i %in% codon_pos) && !(i %in% pam_pos)){
+            
+            if( i %in% mutated){
+              # red-colored font
+              outputHTML <- paste(outputHTML,"<strong><font style='color: red'>", substr(sequence, i,i), "</font></strong>", sep="")                 
+              
+            }else{
+              # unlabeled
+              outputHTML <- paste(outputHTML, substr(sequence, i,i), sep="")   
+              
+            }
+            
+            
+            
+          }
+          ############################################ 
+          
+          
+        } else{ # position is not labeled
+          outputHTML <- paste(outputHTML,substr(sequence, i,i), sep="")
+        } # end of the if statements
+        
+      } # end of for loop to iterate over all relevant positions
+      
+      
+      # add the sequence up to the end of oligo
+      outputHTML <- paste(outputHTML, substr(sequence, all_special_pos[length(all_special_pos)] + 1, oligoEnd), "<br/>", sep = "")
+      
+      # get all information on the relevant restriction enzyme site
+
+      if(outputList[[j]][["RE_site"]] != "none"){
+        
+        # store the restriction site information
+        enzyme <- outputList[[j]][["RE_enzyme"]]
+        site <- outputList[[j]][["RE_site"]]
+        site_coords <- outputList[[j]][["RE_site_coords"]]
+
+        # add a second line for the restriction site
+        outputHTML <- paste(outputHTML, "<span style='opacity: 0;'>", substr(sequence, oligoStart, site_coords[1]-1), "</span>", 
+                            "<strong>",substr(sequence, site_coords[1], site_coords[2]), "</strong>", " - ", "<span style='color:blue'>",
+                            enzyme, "</span>", " (", "<span style=' font-weight: bold'>",  site,  "</span>", ")",
+                            "<br/>", sep = "")
+
+      }
+      
+      # add the final tags
+      outputHTML <- paste(outputHTML, "</div>", sep = "")
+      
+      
+      HTML(outputHTML)
+      
+    }) # end of lapply
+    
+  }) # end of renderUI
+  
+  
   }) # end of observeEvent
   
 } # end of server
 
 # Run the application 
 shinyApp(ui = ui, server = server)
+
 
