@@ -98,7 +98,8 @@ ui <- shinyUI(fluidPage(
                                               "Streptococcus pyogenes-NRG" ="NRG",
                                               "S.pyogenes-VQR: NGA" ="NGA",
                                               "S.pyogenes-VRER: NGCG" ="NGCG",
-                                              "Staphylococcus aureus: NNGRRT" = "NNGRRT"), selected = 1))),                                 
+                                              "Staphylococcus aureus: NNGRRT" = "NNGRRT",
+                                              "S.aureus KKH Cas9: NNNRRT" = "NNNRRT"), selected = 1))),                                 
       
       
       
@@ -149,23 +150,23 @@ ui <- shinyUI(fluidPage(
 # Define server logic to design oligos for point mutation knock-in
 server <- function(input, output) {
   
-#################################
-# shinyFeedback section
-#################################
+  #################################
+  # shinyFeedback section
+  #################################
   
   # shinyFeedback code for Mutation input
   observeEvent(input$Mutation, {
     # Mutation is not empty but it does not conform to the pattern
     if( (str_trim(input$Mutation) != "") & !str_detect(str_trim(input$Mutation), "^[a-zA-Z]\\d{1,3}[a-zA-Z]$") ){
-        
-        feedbackWarning(
-          inputId = "Mutation",
-          condition = !str_detect(str_trim(input$Mutation), "^[a-zA-Z]\\d{1,5}[a-zA-Z]$"),
-          text = "Mutation must have the pattern A123C. Please correct this."
-        )
-        
+      
+      feedbackWarning(
+        inputId = "Mutation",
+        condition = !str_detect(str_trim(input$Mutation), "^[a-zA-Z]\\d{1,5}[a-zA-Z]$"),
+        text = "Mutation must have the pattern A123C. Please correct this."
+      )
+      
     } else{ # Mutation conforms to the pattern
-    
+      
       feedbackSuccess(
         inputId = "Mutation",
         condition = str_detect(str_trim(input$Mutation), "^[a-zA-Z]\\d{1,5}[a-zA-Z]$"),
@@ -174,9 +175,9 @@ server <- function(input, output) {
       
       
     }
-      
-# the input has been submitted but the Mutation input was empty      
-  if(input$run & str_trim(input$Mutation) == ""){
+    
+    # the input has been submitted but the Mutation input was empty      
+    if(input$run & str_trim(input$Mutation) == ""){
       
       feedbackWarning(
         inputId = "Mutation",
@@ -193,7 +194,7 @@ server <- function(input, output) {
   
   # shinyFeedback code for CDS input
   observeEvent(input$CDS, {
-
+    
     # the input has been submitted but the CDS input was empty      
     if(input$run & str_trim(input$CDS) == ""){
       
@@ -211,9 +212,9 @@ server <- function(input, output) {
       lettersCDS <- unique(strsplit(CDS_input, "")[[1]])
       
       feedbackSuccess(
-          inputId = "CDS",
-          condition = (nchar(CDS_input) %% 3 == 0) & (sum(lettersCDS %in% DNA_BASES) == length(lettersCDS)),
-          text = " "
+        inputId = "CDS",
+        condition = (nchar(CDS_input) %% 3 == 0) & (sum(lettersCDS %in% DNA_BASES) == length(lettersCDS)),
+        text = " "
       )
       
       # 
@@ -504,14 +505,14 @@ server <- function(input, output) {
     }
   })
   
-#################################
-# END shinyFeedback section
-#################################
-
+  #################################
+  # END shinyFeedback section
+  #################################
   
-#####################################################################
-# Lists for storing codons for each amino acid and Restriction sites
-#####################################################################  
+  
+  #####################################################################
+  # Lists for storing codons for each amino acid and Restriction sites
+  #####################################################################  
   
   # define reverse genetic code
   REV_GENETIC_CODE = list()
@@ -534,15 +535,102 @@ server <- function(input, output) {
     
   }
   
-#####################################################################
-# END of Lists section
-#####################################################################
+  #####################################################################
+  # END of Lists section
+  #####################################################################
   
   
-#################################
-# FUNCTIONS
-#################################
-  
+  #################################
+  # FUNCTIONS
+  #################################
+  getPAM_pattern <- function(oriented, PAM){
+    
+    # generate a match pattern based on the type of Cas9 and orientation
+    if(oriented == "sense"){
+      # define PAM based on the user input
+      
+      # "NGG"
+      # "NRG"
+      # "NGA"
+      # "NGCG"
+      # "NNGRRT"
+      
+      # "NGG"
+      if(PAM == "NGG"){
+        PAM_pattern = "[ACTG]GG"        
+      }
+      
+      # "NRG"
+      if(PAM == "NRG"){
+        PAM_pattern = "[ACTG][AG]G"        
+      }
+      
+      # "NGA"
+      if(PAM == "NGA"){
+        PAM_pattern = "[ACTG]GA"        
+      }
+      
+      # "NGCG"
+      if(PAM == "NGCG"){
+        PAM_pattern = "[ACTG]GCG"        
+      }
+      
+      # "NNGRRT"
+      if(PAM == "NNGRRT"){
+        PAM_pattern = "[ACTG][ACTG]G[AG][AG]T"        
+      }
+      
+      # "NNNRRT"
+      if(PAM == "NNNRRT"){
+        PAM_pattern = "[ACTG][ACTG][ACTG][AG][AG]T"        
+      }
+      
+      
+      
+    } else{
+      
+      # define PAM based on the user input
+      
+      # "NGG" => "CCN"
+      # "NRG" => "CYN"
+      # "NGA" => "TCN"
+      # "NGCG" => "CGCN"
+      # "NNGRRT" => "AYYCNN"
+      
+      # "NGG"
+      if(PAM == "NGG"){
+        PAM_pattern = "CC[ACTG]"        
+      }
+      
+      # "NRG"
+      if(PAM == "NRG"){
+        PAM_pattern = "C[TC][ACTG]"        
+      }
+      
+      # "NGA"
+      if(PAM == "NGA"){
+        PAM_pattern = "TC[ACTG]"        
+      }
+      
+      # "NGCG"
+      if(PAM == "NGCG"){
+        PAM_pattern = "CGC[ACTG]"        
+      }
+      
+      # "NNGRRT"
+      if(PAM == "NNGRRT"){
+        PAM_pattern = "A[TC][TC]C[ACTG][ACTG]"        
+      }
+      
+      # "NNNRRT"
+      if(PAM == "NNNRRT"){
+        PAM_pattern = "A[TC][TC][ACTG][ACTG][ACTG]"        
+      }
+      
+    } # end of PAM sequence definition
+    
+    PAM_pattern
+  }
   
   # small function to return codon differences
   getCoordinatesDiffs <- function(codon1, codon2, firstPos){
@@ -556,7 +644,7 @@ server <- function(input, output) {
     return(coordinates)
   }
   
-
+  
   # function to calculate which enzymes are non-cutters
   getNonCutters <- function(all_enzymes, dna){
     
@@ -630,11 +718,11 @@ server <- function(input, output) {
     
   }
   
-
+  
   # seqInputs function which processes the input and stores them in 
   # a list for future use in a similar fashion as the built-in input list
   seqInputs <- reactive({
-
+    
     #########################################################
     # validation
     #########################################################
@@ -651,7 +739,7 @@ server <- function(input, output) {
     # initialize the list for storage of data
     userData <- list()
     
-  
+    
     ##########################################################
     # retrieve the data from BioMart or from manual text input
     
@@ -687,8 +775,8 @@ server <- function(input, output) {
       
       # also get the full cDNA sequence 
       CDNA_seq <- getSequence(id = trID, type="ensembl_transcript_id", seqType="cdna", mart=ensembl)
-    
-        
+      
+      
       # step 1 algorithm:
       # 1. match all exons to the cDNA to get their coordinates within the cDNA
       exon_cDNA_matches <- str_locate_all(CDNA_seq$cdna, exon_seqs$gene_exon) 
@@ -720,9 +808,9 @@ server <- function(input, output) {
       
       # test that there is enough sequence on the 5' side
       if(target_exon_unspl_start >= 301){
-      
+        
         intron5 <- substr(unspl_transcript$transcript_exon_intron, target_exon_unspl_start - 300, target_exon_unspl_start-1)
-
+        
       } else{
         
         # retrieve 300 bp upstream and join this sequence with the unspliced sequence
@@ -789,7 +877,7 @@ server <- function(input, output) {
       validate(need( exon_input != "", "Exon sequence cannot be blank. Please enter the exon sequence"))
       validate(need(sum(lettersExon %in% DNA_BASES) == length(lettersExon), "Please provide a correct exon sequence")) 
       
-            
+      
       # trimming the whitespace on both sides of the sequence
       intron5_input <- str_trim(intron5_input)
       # defining the unique characters in the intron5_input
@@ -812,185 +900,115 @@ server <- function(input, output) {
       
     }# end of else for manual data input
     
-      # validation of the exon being inside the CDS
-      validate( need(str_detect(CDS_input, exon_input), "Please make sure your input exon matches the coding sequence.") )
-      
-      # generate a genomicString variable
-      genomicString <- paste(intron5_input, exon_input, intron3_input, sep="")
-      
-      # retrieve forward primer and reverse primers and validate them
-      forw_primer <- toupper(str_trim(input$forw_primer))
-      rev_primer <- toupper(str_trim(input$rev_primer))
-      
-      # empty primer fields
-      validate(need( forw_primer != "", "Forward primer sequence cannot be blank. Please enter a forward primer sequence"))
-      validate(need( rev_primer != "", "Reverse primer sequence cannot be blank. Please enter a reverse primer sequence"))
-      
-      # matching test for the forward primer
-      validate( need(str_detect(genomicString, forw_primer), "Please make sure your forward primer matches precisely either your flanking sequence or exon.") )
-      
-      # make a reverse complement of the reverse primer
-      rc_rev_primer <- as.character(reverseComplement(DNAString(rev_primer)))
-      
-      # matching test for the reverse primer
-      validate( need(str_detect(genomicString, rc_rev_primer), "Please make sure your reverse primer matches precisely either your exon or flanking sequence.") )
-      
-      # retrieve the input sgRNA and validate it with respect to the genomic string
-      # this would also validate the orientation of the sgRNA
-      
-      
-      sgRNA <- toupper(str_trim(input$sgRNA_seq))
-      validate(need(sgRNA != "", "sgRNA sequence cannot be blank. Please enter the a sgRNA sequence"))
-      
-      if(input$oriented == "sense"){
-        validate( need(str_detect(genomicString, sgRNA), "Please make sure your sgRNA matches your sequence precisely and the orientation is correct.") )
-      } else{
-        
-        rc_sgRNA <- as.character(reverseComplement(DNAString(sgRNA)))
-        
-        validate( need(str_detect(genomicString, rc_sgRNA), "Please make sure your sgRNA matches your sequence precisely and the orientation is correct.") )
-        
-      }
+    # validation of the exon being inside the CDS
+    validate( need(str_detect(CDS_input, exon_input), "Please make sure your input exon matches the coding sequence.") )
     
-
-      # validate the PAM sequence inside the genomicString
+    # generate a genomicString variable
+    genomicString <- paste(intron5_input, exon_input, intron3_input, sep="")
+    
+    # retrieve forward primer and reverse primers and validate them
+    forw_primer <- toupper(str_trim(input$forw_primer))
+    rev_primer <- toupper(str_trim(input$rev_primer))
+    
+    # empty primer fields
+    validate(need( forw_primer != "", "Forward primer sequence cannot be blank. Please enter a forward primer sequence"))
+    validate(need( rev_primer != "", "Reverse primer sequence cannot be blank. Please enter a reverse primer sequence"))
+    
+    # matching test for the forward primer
+    validate( need(str_detect(genomicString, forw_primer), "Please make sure your forward primer matches precisely either your flanking sequence or exon.") )
+    
+    # make a reverse complement of the reverse primer
+    rc_rev_primer <- as.character(reverseComplement(DNAString(rev_primer)))
+    
+    # matching test for the reverse primer
+    validate( need(str_detect(genomicString, rc_rev_primer), "Please make sure your reverse primer matches precisely either your exon or flanking sequence.") )
+    
+    # retrieve the input sgRNA and validate it with respect to the genomic string
+    # this would also validate the orientation of the sgRNA
+    
+    
+    sgRNA <- toupper(str_trim(input$sgRNA_seq))
+    validate(need(sgRNA != "", "sgRNA sequence cannot be blank. Please enter the a sgRNA sequence"))
+    
+    if(input$oriented == "sense"){
+      validate( need(str_detect(genomicString, sgRNA), "Please make sure your sgRNA matches your sequence precisely and the orientation is correct.") )
+    } else{
       
-      # 1. get coordinates for sgRNA
+      rc_sgRNA <- as.character(reverseComplement(DNAString(sgRNA)))
       
-      # code to define the PAM to be used in the website
-      if(input$oriented == "sense"){
-        
-        # align sgRNA and genomic region when they are in the same orientation
-        align_sgRNA <- matchPattern(DNAString(sgRNA), genomicString)
-        start_sgR  <- start(align_sgRNA)
-        end_sgR  <- end(align_sgRNA)
-        
-        # define the PAM coordinates
-        # based on the type of PAM that the user selects
-        if(input$PAM %in% c("NGG", "NRG", "NGA") ){
-          pam_coords <- c(end_sgR +1, end_sgR + 3)       
-        }
-        
-        if(input$PAM == "NGCG"){
-          pam_coords <- c(end_sgR +1, end_sgR + 4)       
-        }
-        
-        if(input$PAM == "NNGRRT"){
-          pam_coords <- c(end_sgR +1, end_sgR + 6)       
-        }
-        
-        
-        # reverse sgRNA orientation            
-      } else{
-        sgRNA_DS <- DNAString(sgRNA)
-        sgRNA_rc <- reverseComplement(sgRNA_DS)
-        
-        # align sgRNA and genomic region when they are in the opposite orientations
-        align_sgRNA <- matchPattern(sgRNA_rc, genomicString)
-        start_sgR  <- start(align_sgRNA)
-        end_sgR  <- end(align_sgRNA)
-        
-        # define the PAM coordinates
-        pam_coords <- c(start_sgR - 3, start_sgR-1 )
-        
-        # define the PAM coordinates
-        # based on the type of PAM that the user selects
-        if( input$PAM %in% c("NGG", "NRG", "NGA") ){
-          pam_coords <- c(start_sgR - 3, start_sgR-1 )       
-        }
-
-        if(input$PAM == "NGCG"){
-          pam_coords <- c(start_sgR - 4, start_sgR-1 )       
-        }
-        
-        if(input$PAM == "NNGRRT"){
-          pam_coords <- c(start_sgR - 6, start_sgR-1 )       
-        }
+      validate( need(str_detect(genomicString, rc_sgRNA), "Please make sure your sgRNA matches your sequence precisely and the orientation is correct.") )
       
-      } # end of PAM coordinates definition 
+    }
+    
+    
+    # validate the PAM sequence inside the genomicString
+    
+    # 1. get coordinates for sgRNA
+    
+    # code to define the PAM to be used in the website
+    if(input$oriented == "sense"){
+      
+      # align sgRNA and genomic region when they are in the same orientation
+      align_sgRNA <- matchPattern(DNAString(sgRNA), genomicString)
+      start_sgR  <- start(align_sgRNA)
+      end_sgR  <- end(align_sgRNA)
+      
+      # define the PAM coordinates
+      # based on the type of PAM that the user selects
+      if(input$PAM %in% c("NGG", "NRG", "NGA") ){
+        pam_coords <- c(end_sgR +1, end_sgR + 3)       
+      }
+      
+      if(input$PAM == "NGCG"){
+        pam_coords <- c(end_sgR +1, end_sgR + 4)       
+      }
+      
+      # SaCas9 - WT or KKH
+      if(input$PAM == "NNGRRT" | input$PAM == "NNNRRT"){
+        pam_coords <- c(end_sgR +1, end_sgR + 6)       
+      }
       
       
-      # 2. extract the PAM sequence based on the above, orientation and type of CRISPR system
-      PAM_seq <- substr(genomicString, pam_coords[1], pam_coords[2])
+      # reverse sgRNA orientation            
+    } else{
+      sgRNA_DS <- DNAString(sgRNA)
+      sgRNA_rc <- reverseComplement(sgRNA_DS)
       
-      # generate a match pattern based on the type of Cas9 and orientation
-      if(input$oriented == "sense"){
-        
-        # define PAM based on the user input
-        
-        # "NGG"
-        # "NRG"
-        # "NGA"
-        # "NGCG"
-        # "NNGRRT"
-        
-        # "NGG"
-        if(input$PAM == "NGG"){
-          PAM_pattern = "[ACTG]GG"        
-        }
-        
-        # "NRG"
-        if(input$PAM == "NRG"){
-          PAM_pattern = "[ACTG][AG]G"        
-        }
-        
-        # "NGA"
-        if(input$PAM == "NGA"){
-          PAM_pattern = "[ACTG]GA"        
-        }
-        
-        # "NGCG"
-        if(input$PAM == "NGCG"){
-          PAM_pattern = "[ACTG]GCG"        
-        }
-        
-        # "NNGRRT"
-        if(input$PAM == "NNGRRT"){
-          PAM_pattern = "[ACTG][ACTG]G[AG][AG]T"        
-        }
-        
-        
-      } else{
-        
-        # define PAM based on the user input
-        
-        # "NGG" => "CCN"
-        # "NRG" => "CYN"
-        # "NGA" => "TCN"
-        # "NGCG" => "CGCN"
-        # "NNGRRT" => "AYYCNN"
-        
-        # "NGG"
-        if(input$PAM == "NGG"){
-          PAM_pattern = "CC[ACTG]"        
-        }
-        
-        # "NRG"
-        if(input$PAM == "NRG"){
-          PAM_pattern = "C[TC][ACTG]"        
-        }
-        
-        # "NGA"
-        if(input$PAM == "NGA"){
-          PAM_pattern = "TC[ACTG]"        
-        }
-        
-        # "NGCG"
-        if(input$PAM == "NGCG"){
-          PAM_pattern = "CGC[ACTG]"        
-        }
-        
-        # "NNGRRT"
-        if(input$PAM == "NNGRRT"){
-          PAM_pattern = "A[TC][TC]C[ACTG][ACTG]"        
-        }
-        
-        
-      } # end of PAM sequence definition
+      # align sgRNA and genomic region when they are in the opposite orientations
+      align_sgRNA <- matchPattern(sgRNA_rc, genomicString)
+      start_sgR  <- start(align_sgRNA)
+      end_sgR  <- end(align_sgRNA)
       
-
-      # 3. perform validation based on regular expression of extracted PAM sequences with the corresponding PAM pattern
-      validate( need(str_detect(PAM_seq, PAM_pattern), "Please make sure your CRISPR system is selected correctly so the PAM matches the sequence.") )
+      # define the PAM coordinates
+      pam_coords <- c(start_sgR - 3, start_sgR-1 )
+      
+      # define the PAM coordinates
+      # based on the type of PAM that the user selects
+      if( input$PAM %in% c("NGG", "NRG", "NGA") ){
+        pam_coords <- c(start_sgR - 3, start_sgR-1 )       
+      }
+      
+      if(input$PAM == "NGCG"){
+        pam_coords <- c(start_sgR - 4, start_sgR-1 )       
+      }
+      
+      # SaCas9 - WT or KKH
+      if(input$PAM == "NNGRRT" | input$PAM == "NNNRRT"){
+        pam_coords <- c(start_sgR - 6, start_sgR-1 )       
+      }
+      
+      
+    } # end of PAM coordinates definition 
+    
+    
+    # 2. extract the PAM sequence based on the above, orientation and type of CRISPR system
+    PAM_seq <- substr(genomicString, pam_coords[1], pam_coords[2])
+    
+    # generate a regular expression for PAM pattern  
+    PAM_pattern <- getPAM_pattern(input$oriented, input$PAM)  
+    
+    # 3. perform validation based on regular expression of extracted PAM sequences with the corresponding PAM pattern
+    validate( need(str_detect(PAM_seq, PAM_pattern), "Please make sure your CRISPR system is selected correctly so the PAM matches the sequence.") )
     
     #########################################################
     # END of validation section
@@ -1006,7 +1024,7 @@ server <- function(input, output) {
     # the rest of the inputs will be accessed from the regular input list since 
     # repeated execution of the whole function will be problematic
     
-
+    
     # store the sequence inputs pasted by the user or retrieved from the databases
     
     userData$CDS <- CDS_input
@@ -1097,15 +1115,7 @@ server <- function(input, output) {
       
       # define the PAM coordinates
       # based on the type of PAM that the user selects
-      if(input$PAM == "NGG"){
-        pam_coords <- c(end_sgR +1, end_sgR + 3)       
-      }
-      
-      if(input$PAM == "NRG"){
-        pam_coords <- c(end_sgR +1, end_sgR + 3)       
-      }
-      
-      if(input$PAM == "NGA"){
+      if(input$PAM %in% c("NGG", "NRG", "NGA") ){
         pam_coords <- c(end_sgR +1, end_sgR + 3)       
       }
       
@@ -1113,10 +1123,10 @@ server <- function(input, output) {
         pam_coords <- c(end_sgR +1, end_sgR + 4)       
       }
       
-      if(input$PAM == "NNGRRT"){
+      # SaCas9 - WT or KKH
+      if(input$PAM == "NNGRRT" | input$PAM == "NNNRRT"){
         pam_coords <- c(end_sgR +1, end_sgR + 6)       
       }
-      
       
       # reverse sgRNA orientation            
     } else{
@@ -1124,7 +1134,7 @@ server <- function(input, output) {
       sgRNA_rc <- reverseComplement(sgRNA_DS)
       
       # align sgRNA and genomic region when they are in the opposite orientations
-      align_sgRNA <- matchPattern(sgRNA_rc, genomicString)
+      align_sgRNA <- matchPattern(sgRNA_rc, toupper(genomicString))
       start_sgR  <- start(align_sgRNA)
       end_sgR  <- end(align_sgRNA)
       
@@ -1133,15 +1143,7 @@ server <- function(input, output) {
       
       # define the PAM coordinates
       # based on the type of PAM that the user selects
-      if(input$PAM == "NGG"){
-        pam_coords <- c(start_sgR - 3, start_sgR-1 )       
-      }
-      
-      if(input$PAM == "NRG"){
-        pam_coords <- c(start_sgR - 3, start_sgR-1 )       
-      }
-      
-      if(input$PAM == "NGA"){
+      if( input$PAM %in% c("NGG", "NRG", "NGA") ){
         pam_coords <- c(start_sgR - 3, start_sgR-1 )       
       }
       
@@ -1149,10 +1151,10 @@ server <- function(input, output) {
         pam_coords <- c(start_sgR - 4, start_sgR-1 )       
       }
       
-      if(input$PAM == "NNGRRT"){
+      # SaCas9 - WT or KKH
+      if(input$PAM == "NNGRRT" | input$PAM == "NNNRRT"){
         pam_coords <- c(start_sgR - 6, start_sgR-1 )       
       }
-      
       
     } # end of PAM coordinates definition 
     
@@ -1369,80 +1371,8 @@ server <- function(input, output) {
     ID <- 1
     PAM_mutated = list()
     
-    # generate a match pattern based on the type of Cas9 and orientation
-    if(input$oriented == "sense"){
-      
-      # define PAM based on the user input
-      
-      # "NGG"
-      # "NRG"
-      # "NGA"
-      # "NGCG"
-      # "NNGRRT"
-      
-      # "NGG"
-      if(input$PAM == "NGG"){
-        PAM_pattern = "[ACTG]GG"        
-      }
-      
-      # "NRG"
-      if(input$PAM == "NRG"){
-        PAM_pattern = "[ACTG][AG]G"        
-      }
-      
-      # "NGA"
-      if(input$PAM == "NGA"){
-        PAM_pattern = "[ACTG]GA"        
-      }
-      
-      # "NGCG"
-      if(input$PAM == "NGCG"){
-        PAM_pattern = "[ACTG]GCG"        
-      }
-      
-      # "NNGRRT"
-      if(input$PAM == "NNGRRT"){
-        PAM_pattern = "[ACTG][ACTG]G[AG][AG]T"        
-      }
-      
-      
-    } else{
-      
-      # define PAM based on the user input
-      
-      # "NGG" => "CCN"
-      # "NRG" => "CYN"
-      # "NGA" => "TCN"
-      # "NGCG" => "CGCN"
-      # "NNGRRT" => "AYYCNN"
-      
-      # "NGG"
-      if(input$PAM == "NGG"){
-        PAM_pattern = "CC[ACTG]"        
-      }
-      
-      # "NRG"
-      if(input$PAM == "NRG"){
-        PAM_pattern = "C[TC][ACTG]"        
-      }
-      
-      # "NGA"
-      if(input$PAM == "NGA"){
-        PAM_pattern = "TC[ACTG]"        
-      }
-      
-      # "NGCG"
-      if(input$PAM == "NGCG"){
-        PAM_pattern = "CGC[ACTG]"        
-      }
-      
-      # "NNGRRT"
-      if(input$PAM == "NNGRRT"){
-        PAM_pattern = "A[TC][TC]C[ACTG][ACTG]"        
-      }
-      
-      
-    } # end of PAM sequence definition
+    # generate a regular expression for PAM pattern  
+    PAM_pattern <- getPAM_pattern(input$oriented, input$PAM)  
     
     #################################
     # Generation of mutant versions
@@ -1751,7 +1681,6 @@ server <- function(input, output) {
     # main a counter variable
     ID <- 1
     
-    
     ##############################################
     # coordinates extraction 
     ##############################################
@@ -1915,6 +1844,67 @@ server <- function(input, output) {
         SITES_EXIST_FLAG <- TRUE
         
         # iterate over each enzyme to get the site coordinates and store the results
+        #########################################
+        # STORAGE OF RESULTS TO THE OUTPUT LIST
+        #########################################
+        
+        # initiate the list for this ID
+        output_REsites[[ID]] <-  list()
+        
+        # store the current site assay
+        output_REsites[[ID]][["site_assay"]] <- mut_site_assay
+        
+        # store data on the main codon mutation
+        output_REsites[[ID]][["new_codon"]] <- new_codon
+        output_REsites[[ID]][["AA_mutation"]] <- AA_mut
+        output_REsites[[ID]][["codon_coords"]] <- codon_coords
+        output_REsites[[ID]][["codon_diffs_coords"]] <- codon_diffs_coords
+        
+        # add the information on PAM mutations to the new output data structure
+        if(item[["PAM_mutant_codon"]] != "none"){
+          
+          output_REsites[[ID]][["PAM_mutant_codon"]] <- PAM_mutant_codon
+          output_REsites[[ID]][["PAM_mut_codon_coords"]] <- PAM_mut_codon_coords            
+          output_REsites[[ID]][["PAM_mut_codon_diffs"]] <- PAM_mut_codon_diffs                  
+          output_REsites[[ID]][["sgRNA_mutations"]] <- FALSE
+          
+        } else{
+          
+          output_REsites[[ID]][["PAM_mutant_codon"]] <- "none"
+          
+        } # end of if-else statement for PAM mutation
+        
+        # check if there were any sgRNA mutations and store their parameters in variables
+        if(item[["sgRNA_mutations"]]){
+          
+          # store an indicator for sgRNA_mutations
+          output_REsites[[ID]][["sgRNA_mutations"]] <- item[["sgRNA_mutations"]]
+          
+          # store all mutation difference
+          output_REsites[[ID]][["sgRNA_mut_codon_diffs"]] <- sgRNA_mut_codon_diffs
+          
+          # check that and which overlap codons are present in the data  
+          if( !is.null( item[["sgRNA_mut_codon_overlap1"]] ) ){
+            output_REsites[[ID]][["sgRNA_mut_codon_overlap1"]] <- sgRNA_mut_codon_overlap1
+          }
+          
+          if( !is.null( item[["sgRNA_mut_codon_overlap2"]] ) ){
+            output_REsites[[ID]][["sgRNA_mut_codon_overlap2"]] <- sgRNA_mut_codon_overlap2
+          }
+          
+        } else{
+          
+          # store an indicator for sgRNA_mutations
+          output_REsites[[ID]][["sgRNA_mutations"]] <- item[["sgRNA_mutations"]]            
+          
+        } # end of sgRNA mutations statements                    
+        
+        
+        # initialize the list for enzyme sites
+        output_REsites[[ID]][["enzymes"]] <- list()
+        enzID <- 1
+        
+        # add all of the cutter enzymes to a list inside an existing oligo entry
         for(cutterEnzyme in cutters){
           
           # get cut site
@@ -1931,83 +1921,32 @@ server <- function(input, output) {
             site_coords <- c(rev(nchar(rc_mut_site_assay) - str_locate(toupper(rc_mut_site_assay), cut_site) + 1))    
           }
           
-          
-          #########################################
-          # STORAGE OF RESULTS TO THE OUTPUT LIST
-          #########################################
-          
-          # initiate the list for this ID
-          output_REsites[[ID]] = list()
-          
-          # store the current site assay
-          output_REsites[[ID]][["site_assay"]] <- mut_site_assay
-          
-          # store data on the main codon mutation
-          output_REsites[[ID]][["new_codon"]] <- new_codon
-          output_REsites[[ID]][["AA_mutation"]] <- AA_mut
-          output_REsites[[ID]][["codon_coords"]] <- codon_coords
-          output_REsites[[ID]][["codon_diffs_coords"]] <- codon_diffs_coords
-          
-          # add the information on PAM mutations to the new output data structure
-          if(item[["PAM_mutant_codon"]] != "none"){
-            
-            output_REsites[[ID]][["PAM_mutant_codon"]] <- PAM_mutant_codon
-            output_REsites[[ID]][["PAM_mut_codon_coords"]] <- PAM_mut_codon_coords            
-            output_REsites[[ID]][["PAM_mut_codon_diffs"]] <- PAM_mut_codon_diffs                  
-            output_REsites[[ID]][["sgRNA_mutations"]] <- FALSE
-            
-          } else{
-            
-            output_REsites[[ID]][["PAM_mutant_codon"]] <- "none"
-            
-          } # end of if-else statement for PAM mutation
-          
-          # check if there were any sgRNA mutations and store their parameters in variables
-          if(item[["sgRNA_mutations"]]){
-            
-            # store an indicator for sgRNA_mutations
-            output_REsites[[ID]][["sgRNA_mutations"]] <- item[["sgRNA_mutations"]]
-            
-            # store all mutation difference
-            output_REsites[[ID]][["sgRNA_mut_codon_diffs"]] <- sgRNA_mut_codon_diffs
-            
-            # check that and which overlap codons are present in the data  
-            if( !is.null( item[["sgRNA_mut_codon_overlap1"]] ) ){
-              output_REsites[[ID]][["sgRNA_mut_codon_overlap1"]] <- sgRNA_mut_codon_overlap1
-            }
-            
-            if( !is.null( item[["sgRNA_mut_codon_overlap2"]] ) ){
-              output_REsites[[ID]][["sgRNA_mut_codon_overlap2"]] <- sgRNA_mut_codon_overlap2
-            }
-            
-          } else{
-            
-            # store an indicator for sgRNA_mutations
-            output_REsites[[ID]][["sgRNA_mutations"]] <- item[["sgRNA_mutations"]]            
-            
-          } # end of sgRNA mutations statements                    
-          
           # store the restriction site information
-          output_REsites[[ID]][["RE_enzyme"]] <- cutterEnzyme
-          output_REsites[[ID]][["RE_site"]] <- RE_SITES[[cutterEnzyme]]$Sequence
-          output_REsites[[ID]][["RE_site_coords"]] <- site_coords
+          output_REsites[[ID]][["enzymes"]][[enzID]] <- list()
           
-          # update ID
-          ID <- ID + 1
+          output_REsites[[ID]][["enzymes"]][[enzID]][["RE_enzyme"]] <- cutterEnzyme
+          output_REsites[[ID]][["enzymes"]][[enzID]][["RE_site"]] <- RE_SITES[[cutterEnzyme]]$Sequence
+          output_REsites[[ID]][["enzymes"]][[enzID]][["RE_site_coords"]] <- site_coords
+          
+          # update the enzID counter
+          enzID <- enzID + 1
           
         } # end of cutters for loop
         
+        # update the main ID variable
+        ID <- ID + 1
+        
       } # end of if statement  for testing how many enzymes cut the sequence
+      
+      REsite_BY_MUTATION <- TRUE    
       
       ###############################################
       # existing mutations do not introduce any sites
       
-      
-      # flag for introducing a site by a synonymous mutation
-      REsite_BY_MUTATION <- FALSE
-      
-      
       if( !SITES_EXIST_FLAG){
+        
+        # flag for introducing a site by a synonymous mutation
+        REsite_BY_MUTATION <- FALSE
         
         #############################################################
         # codon selection for mutating to introduce restriction sites
@@ -2112,6 +2051,63 @@ server <- function(input, output) {
               # update the flag variable
               REsite_BY_MUTATION <- TRUE
               
+              #########################################
+              # STORAGE OF RESULTS TO THE OUTPUT LIST
+              #########################################
+              
+              # initiate the list for this ID
+              output_REsites[[ID]] = list()
+              
+              # store the current site assay
+              output_REsites[[ID]][["site_assay"]] <- mut_cds
+              
+              # store data on the main codon mutation
+              output_REsites[[ID]][["new_codon"]] <- new_codon
+              output_REsites[[ID]][["AA_mutation"]] <- AA_mut
+              output_REsites[[ID]][["codon_coords"]] <- codon_coords
+              output_REsites[[ID]][["codon_diffs_coords"]] <- codon_diffs_coords
+              
+              # add the information on PAM mutations to the new output data structure
+              if(item[["PAM_mutant_codon"]] != "none"){
+                
+                output_REsites[[ID]][["PAM_mutant_codon"]] <- PAM_mutant_codon
+                output_REsites[[ID]][["PAM_mut_codon_coords"]] <- PAM_mut_codon_coords            
+                output_REsites[[ID]][["PAM_mut_codon_diffs"]] <- PAM_mut_codon_diffs                  
+                output_REsites[[ID]][["sgRNA_mutations"]] <- FALSE
+                
+              } else{
+                
+                output_REsites[[ID]][["PAM_mutant_codon"]] <- "none"
+                
+              } # end of if-else statement for PAM mutation
+              
+              # check if there were any sgRNA mutations and store their parameters in variables
+              if(item[["sgRNA_mutations"]]){
+                
+                # store the sgRNA_mutations indicator
+                output_REsites[[ID]][["sgRNA_mutations"]] <- item[["sgRNA_mutations"]]
+                
+                # store all mutation difference
+                output_REsites[[ID]][["sgRNA_mut_codon_diffs"]] <- sgRNA_mut_codon_diffs
+                
+                # check that and which overlap codons are present in the data  
+                if( !is.null( item[["sgRNA_mut_codon_overlap1"]] ) ){
+                  output_REsites[[ID]][["sgRNA_mut_codon_overlap1"]] <- sgRNA_mut_codon_overlap1
+                }
+                
+                if( !is.null( item[["sgRNA_mut_codon_overlap2"]] ) ){
+                  output_REsites[[ID]][["sgRNA_mut_codon_overlap2"]] <- sgRNA_mut_codon_overlap2
+                }
+                
+              } else{
+                # store the sgRNA_mutations indicator
+                output_REsites[[ID]][["sgRNA_mutations"]] <- item[["sgRNA_mutations"]]
+                
+              } # end of sgRNA mutations statements                    
+              
+              # initialize the list for enzyme sites
+              output_REsites[[ID]][["enzymes"]] <- list()
+              enzID <- 1
               
               # iterate over each enzyme to get the site coordinates and store the results
               for(cutterEnzyme in cutters){
@@ -2130,75 +2126,23 @@ server <- function(input, output) {
                   site_coords <- c(rev(nchar(rc_mut_cds) - str_locate(toupper(rc_mut_cds), cut_site) + 1 ))    
                 }
                 
-                #########################################
-                # STORAGE OF RESULTS TO THE OUTPUT LIST
-                #########################################
-                
-                # initiate the list for this ID
-                output_REsites[[ID]] = list()
-                
-                # store the current site assay
-                output_REsites[[ID]][["site_assay"]] <- mut_cds
-                
-                # store data on the main codon mutation
-                output_REsites[[ID]][["new_codon"]] <- new_codon
-                output_REsites[[ID]][["AA_mutation"]] <- AA_mut
-                output_REsites[[ID]][["codon_coords"]] <- codon_coords
-                output_REsites[[ID]][["codon_diffs_coords"]] <- codon_diffs_coords
-                
-                # add the information on PAM mutations to the new output data structure
-                if(item[["PAM_mutant_codon"]] != "none"){
-                  
-                  output_REsites[[ID]][["PAM_mutant_codon"]] <- PAM_mutant_codon
-                  output_REsites[[ID]][["PAM_mut_codon_coords"]] <- PAM_mut_codon_coords            
-                  output_REsites[[ID]][["PAM_mut_codon_diffs"]] <- PAM_mut_codon_diffs                  
-                  output_REsites[[ID]][["sgRNA_mutations"]] <- FALSE
-                  
-                } else{
-                  
-                  output_REsites[[ID]][["PAM_mutant_codon"]] <- "none"
-                  
-                } # end of if-else statement for PAM mutation
-                
-                # check if there were any sgRNA mutations and store their parameters in variables
-                if(item[["sgRNA_mutations"]]){
-                  
-                  # store the sgRNA_mutations indicator
-                  output_REsites[[ID]][["sgRNA_mutations"]] <- item[["sgRNA_mutations"]]
-                  
-                  # store all mutation difference
-                  output_REsites[[ID]][["sgRNA_mut_codon_diffs"]] <- sgRNA_mut_codon_diffs
-                  
-                  # check that and which overlap codons are present in the data  
-                  if( !is.null( item[["sgRNA_mut_codon_overlap1"]] ) ){
-                    output_REsites[[ID]][["sgRNA_mut_codon_overlap1"]] <- sgRNA_mut_codon_overlap1
-                  }
-                  
-                  if( !is.null( item[["sgRNA_mut_codon_overlap2"]] ) ){
-                    output_REsites[[ID]][["sgRNA_mut_codon_overlap2"]] <- sgRNA_mut_codon_overlap2
-                  }
-                  
-                } else{
-                  # store the sgRNA_mutations indicator
-                  output_REsites[[ID]][["sgRNA_mutations"]] <- item[["sgRNA_mutations"]]
-                  
-                } # end of sgRNA mutations statements                    
-                
                 # store the restriction site information
-                output_REsites[[ID]][["RE_enzyme"]] <- cutterEnzyme
-                output_REsites[[ID]][["RE_site"]] <- RE_SITES[[cutterEnzyme]]$Sequence
-                output_REsites[[ID]][["RE_site_coords"]] <- site_coords
+                output_REsites[[ID]][["enzymes"]][[enzID]] <- list()
+                output_REsites[[ID]][["enzymes"]][[enzID]][["RE_enzyme"]] <- cutterEnzyme
+                output_REsites[[ID]][["enzymes"]][[enzID]][["RE_site"]] <- RE_SITES[[cutterEnzyme]]$Sequence
+                output_REsites[[ID]][["enzymes"]][[enzID]][["RE_site_coords"]] <- site_coords
                 
                 # store sequence changes that led to the site introduction
-                output_REsites[[ID]][["RE_site_codon"]] <- codon_nonID 
-                output_REsites[[ID]][["RE_site_codon_coords"]] <- codon
-                output_REsites[[ID]][["RE_site_codon_diffs"]] <- getCoordinatesDiffs(codon_nonID, selCodonSeq, codon[1])   
+                output_REsites[[ID]][["enzymes"]][[enzID]][["RE_site_codon"]] <- codon_nonID 
+                output_REsites[[ID]][["enzymes"]][[enzID]][["RE_site_codon_coords"]] <- codon
+                output_REsites[[ID]][["enzymes"]][[enzID]][["RE_site_codon_diffs"]] <- getCoordinatesDiffs(codon_nonID, selCodonSeq, codon[1])   
                 
-                
-                # update ID
-                ID <- ID + 1
+                enzID <- enzID + 1
                 
               } # end of cutters for loop
+              
+              # update ID
+              ID <- ID + 1
               
             } # end of if statement  for testing how many enzymes cut the sequence
             
@@ -2213,7 +2157,7 @@ server <- function(input, output) {
       ###############################################################################
       
       # the condition below is TRUE when no sites have been introduced by mutations
-      if( !REsite_BY_MUTATION ){
+      if(!REsite_BY_MUTATION ){
         
         #########################################
         # STORAGE OF RESULTS TO THE OUTPUT LIST
@@ -2284,16 +2228,16 @@ server <- function(input, output) {
     return(output_REsites)
   })
   
-
-########################################################################
-# FINAL OUTPUT STAGE
-########################################################################
+  
+  ########################################################################
+  # FINAL OUTPUT STAGE
+  ########################################################################
   
   
   # The UI function will have to run the knockinDesign function to produce the complete description for all 
   # the designs that are possible with the current input 
   # it will then take the output of the knockinDesign and present all the individual designs
-
+  
   observeEvent(input$run, {
     
     
@@ -2342,9 +2286,7 @@ server <- function(input, output) {
         }     
         
         # combine all mutations
-        mutated <- c(codon_muts, PAM_muts, sgRNA_muts)
-        
-        
+        mutated <- c(codon_muts, PAM_muts, sgRNA_muts, REsite_muts)
         
         # reverseComplement the sequence if the orientation is different
         if(input$orientedOligo == "anti"){
@@ -2361,37 +2303,28 @@ server <- function(input, output) {
           mutated <- nchar(sequence) - rev(mutated) + 1
           codon_muts <- nchar(sequence) - rev(codon_muts) + 1
           PAM_muts <- nchar(sequence) - rev(PAM_muts) + 1
-          sgRNA_muts <- nchar(sequence) - rev(sgRNA_muts) + 1      
+          sgRNA_muts <- nchar(sequence) - rev(sgRNA_muts) + 1
           
         }
         
-        # organize all mutated positions into a single vector
-        all_special_pos <- sort(unique(c(codon_pos, pam_pos,mutated)))
-        
         
         # define the start and end of oligos for the purposes of correct output
-        if(input$orientedOligo == "sense"){
+        if(input$oriented == "sense"){
           
           # define the start and end of oligo coordinates
-          oligoStart <- pam_pos[1] - 4 - input$leftArmLength
-          oligoEnd <- pam_pos[1] - 4 + input$rightArmLength
+          oligoStart <- pam_pos[1] - 3 - input$leftArmLength
+          oligoEnd <- pam_pos[1] - 3 + input$rightArmLength - 1
           
         }else{
           
           # define the start and end of oligo coordinates
-          oligoStart <- pam_pos[2] + 3 - input$leftArmLength 
-          oligoEnd <- pam_pos[2] + 3 + input$rightArmLength 
+          oligoStart <- pam_pos[3] + 3 - input$leftArmLength + 1
+          oligoEnd <- pam_pos[3] + 3 + input$rightArmLength 
           
-          
-        }
+        } 
         
-        # consider checking whether start and end of the oligo are less and more than any labeled positions
-        # in the sequence and then updating them accordingly
-        # Also check that neither of the coordinates is negative or beyond the sequence length,
-        # change them accordingly
-        
-        # TO DO: Develop a robust tabbed interface to show designs for different codons
-        
+        # organize all mutated positions into a single vector
+        all_special_pos <- sort(unique(c(codon_pos, pam_pos,mutated)))
         
         
         # initialize the output HTML
@@ -2523,7 +2456,7 @@ server <- function(input, output) {
       outputStrategy <- function(coords){
         
         # initialize the string for HTML output
-        outputHTML <- '<br/><button type="button" class="btn btn-primary" style="width: 100%; font-size: 20px">Targeting strategy outline:</button><div class="jumbotron", style="width: 100%; word-wrap:break-word; display:inline-block;">'
+        outputHTML <- '<br/><button type="button" class="btn btn-primary" style="width: 100%; font-size: 20px">Targeting strategy outline:</button><div class="jumbotron", style="width: 100%; word-wrap:break-word; display:inline-block; font-size: 16px;">'
         
         # process the input data to add codes to the codon, sgRNA and PAM positions
         # the primer and intervening positions can be added in a regular way
@@ -2684,7 +2617,7 @@ server <- function(input, output) {
         }     
         
         # get the codon mutation that introduced a restriction site
-        if(outputList[[j]][["RE_site"]] != "none"){
+        if( "enzymes" %in% names(outputList[[j]])){
           
           REsite_muts <- outputList[[j]][["RE_site_codon_diffs"]] 
           
@@ -2692,8 +2625,6 @@ server <- function(input, output) {
         
         # combine all mutations
         mutated <- c(codon_muts, PAM_muts, sgRNA_muts, REsite_muts)
-        
-        
         
         # reverseComplement the sequence if the orientation is different
         if(input$orientedOligo == "anti"){
@@ -2710,29 +2641,28 @@ server <- function(input, output) {
           mutated <- nchar(sequence) - rev(mutated) + 1
           codon_muts <- nchar(sequence) - rev(codon_muts) + 1
           PAM_muts <- nchar(sequence) - rev(PAM_muts) + 1
-          sgRNA_muts <- nchar(sequence) - rev(sgRNA_muts) + 1      
+          sgRNA_muts <- nchar(sequence) - rev(sgRNA_muts) + 1
+          
+        }
+        
+        
+        # define the start and end of oligos for the purposes of correct output
+        if(input$oriented == "sense"){
+          
+          # define the start and end of oligo coordinates
+          oligoStart <- pam_pos[1] - 3 - input$leftArmLength
+          oligoEnd <- pam_pos[1] - 3 + input$rightArmLength - 1
+          
+        }else{
+          
+          # define the start and end of oligo coordinates
+          oligoStart <- pam_pos[3] + 3 - input$leftArmLength + 1
+          oligoEnd <- pam_pos[3] + 3 + input$rightArmLength 
           
         }
         
         # organize all mutated positions into a single vector
         all_special_pos <- sort(unique(c(codon_pos, pam_pos,mutated)))
-        
-        
-        # define the start and end of oligos for the purposes of correct output
-        if(input$orientedOligo == "sense"){
-          
-          # define the start and end of oligo coordinates
-          oligoStart <- pam_pos[1] - 4 - input$leftArmLength
-          oligoEnd <- pam_pos[1] - 4 + input$rightArmLength
-          
-        }else{
-          
-          # define the start and end of oligo coordinates
-          oligoStart <- pam_pos[2] + 3 - input$leftArmLength 
-          oligoEnd <- pam_pos[2] + 3 + input$rightArmLength 
-          
-          
-        }
         
         # consider checking whether start and end of the oligo are less and more than any labeled positions
         # in the sequence and then updating them accordingly
@@ -2743,13 +2673,13 @@ server <- function(input, output) {
         # add the strategy HTML if the program is at the beginning of the lapply loop
         if(j == 1){
           # initialize the output HTML
-          outputHTML <- HTML(paste(strategyHTML, "<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block;'>",
+          outputHTML <- HTML(paste(strategyHTML, "<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
                                    "<strong>Oligo design with ID #", j, "</strong>",  "<br/>", sep = ""))          
           
         } else{
-
+          
           # initialize the output HTML
-          outputHTML <- HTML(paste("<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block;'>",
+          outputHTML <- HTML(paste("<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
                                    "<strong>Oligo design with ID #", j, "</strong>",  "<br/>", sep = ""))          
           
         }
@@ -2854,23 +2784,30 @@ server <- function(input, output) {
         
         # get all information on the relevant restriction enzyme site
         
-        if(outputList[[j]][["RE_site"]] != "none"){
+        if("enzymes" %in% names(outputList[[j]])){
           
-          # store the restriction site information
-          enzyme <- outputList[[j]][["RE_enzyme"]]
-          site <- outputList[[j]][["RE_site"]]
-          site_coords <- outputList[[j]][["RE_site_coords"]]
-          
-          # change the coordinates of the restriction site according to the oligo orientation
-          if(input$orientedOligo == "anti"){
-            site_coords <- nchar(sequence) - rev(site_coords) + 1
+          # iterate over all known enzymes for that sequence
+          for(enzymeData in outputList[[j]][["enzymes"]]){
+            
+            # store the restriction site information
+            enzyme <- enzymeData[["RE_enzyme"]]
+            site <- enzymeData[["RE_site"]]
+            site_coords <- enzymeData[["RE_site_coords"]]
+            
+            # change the coordinates of the restriction site according to the oligo orientation
+            if(input$orientedOligo == "anti"){
+              site_coords <- nchar(sequence) - rev(site_coords) + 1
+            }
+            
+            
+            # add a second line for the restriction site
+            outputHTML <- paste(outputHTML, "<span style='opacity: 0;'>", substr(sequence, oligoStart, site_coords[1]-1), "</span>", 
+                                "<strong>",substr(sequence, site_coords[1], site_coords[2]), "</strong>", " - ", "<span style='color:blue'>",
+                                enzyme, "</span>", " (", "<span style=' font-weight: bold'>",  site,  "</span>", ")",
+                                "<br/>", sep = "")
+            
           }
           
-          # add a second line for the restriction site
-          outputHTML <- paste(outputHTML, "<span style='opacity: 0;'>", substr(sequence, oligoStart, site_coords[1]-1), "</span>", 
-                              "<strong>",substr(sequence, site_coords[1], site_coords[2]), "</strong>", " - ", "<span style='color:blue'>",
-                              enzyme, "</span>", " (", "<span style=' font-weight: bold'>",  site,  "</span>", ")",
-                              "<br/>", sep = "")
           
         }
         
@@ -2882,11 +2819,7 @@ server <- function(input, output) {
         
       }) # end of lapply
       
-    
-
-      
     }) # end of renderUI
-    
     
   }) # end of observeEvent
   
