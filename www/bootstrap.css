@@ -1377,11 +1377,11 @@ a.text-danger:focus {
 }
 .bg-primary {
   color: #fff;
-  background-color: #325d88;
+  background-color: #3F547F;
 }
 a.bg-primary:hover,
 a.bg-primary:focus {
-  background-color: #244363;
+  background-color: #3F547F;
 }
 .bg-success {
   background-color: #dff0d8;
@@ -3016,8 +3016,8 @@ select[multiple].input-lg {
   background-image: none;
   border: 1px solid transparent;
   white-space: nowrap;
-  padding: 12px 16px;
-  font-size: 14px;
+  padding: 10px 10px;
+  font-size: 18px;
   line-height: 1.42857143;
   border-radius: 4px;
   -webkit-user-select: none;
@@ -3034,6 +3034,7 @@ select[multiple].input-lg {
   outline: 5px auto -webkit-focus-ring-color;
   outline-offset: -2px;
 }
+
 .btn:hover,
 .btn:focus,
 .btn.focus {
@@ -3125,19 +3126,19 @@ fieldset[disabled] .btn-default.focus {
 .btn-primary:focus,
 .btn-primary.focus {
   color: #ffffff;
-  background-color: #244363;
-  border-color: rgba(0, 0, 0, 0);
+  background-color: #325d88;
+  border-color: transparent;
 }
 .btn-primary:hover {
   color: #ffffff;
-  background-color: #244363;
-  border-color: rgba(0, 0, 0, 0);
+  background-color: #325d88;
+  border-color: transparent;
 }
 .btn-primary:active,
 .btn-primary.active,
 .open > .dropdown-toggle.btn-primary {
   color: #ffffff;
-  background-color: #244363;
+  background-color: #325d88;
   border-color: rgba(0, 0, 0, 0);
 }
 .btn-primary:active:hover,

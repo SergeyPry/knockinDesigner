@@ -1,0 +1,45 @@
+<h3>Overview</h3>
+<p>This is a web-based application for designing oligos for CRISPR-based knock-in of missense mutations into protein-coding genes. The program automatically inserts all possible mutant codons and, where possible, makes synonymous codon substitutions at codons overlapping PAM (Protospacer adjacent motif) sites or single guide RNA (sgRNA) binding sites. The software also inserts restriction sites not present in the amplicon around the mutation by synonymous codon substitution of codons close to the main mutation. Based on the introduced mutations, the program checks for any restriction sites that can be used for genotyping and displays them in the output. Restriction-based genotyping works well when a knock-in mutant exists as an established mutant line. Early in the knock-in mutant generation, it is better to genotype knock-in mutations using allele-specific PCR (AS-PCR), where a common primer outside of the mutation site can combine with either a wild-type specific primer or a knock-in specific primer. These assays are typically highly specific (low false-positive rate) and very sensitive (detect knock-in alleles when these are present at < 1% frequency). CRISPR Knock-in Designer generates  AS-PCR primers based on the designed mutations and the user-provided primers. The overview of the algorithm is provided in the figure below:</p> 
+
+<figure>
+	<center><img src="overview.png" width="600" style="text-align:center; display:block;"/></center>
+    <figcaption><strong>An overview of the inputs for CRISPR Knock-in Designer and its workflow.</strong> The program requires sequence inputs entered manually (Manual Data Entry) or the Species and Ensembl Transcript ID (Automatic Data Entry) that can be used for sequence retrieval from BioMart. These alternative inputs are shown as unfilled rectangle shapes with labels inside. Common inputs and options such as <strong>gene and mutation</strong> inputs are shown as rounded grey rectangles. All inputs are grouped by section indicated by rounded blue dashed-line rectangles. The program then makes all possible codon mutations and applies the CRISPR type option and what kinds of extra mutations the user wants to select the correct pipeline function to produce the output oligos and genotyping assays with restriction enzymes and AS-PCR assays.</figcaption>
+</figure>
+
+<h3>Citation</h3>
+<p> CRISPR Knock-in Designer was developed by <strong>Sergey Prykhozhij</strong> and <strong>Vinothkumar Rajan</strong>. If you encounter a problem, please send an email to <strong>Sergey Prykhozhij</strong> at <strong><font style= "color: darkblue">s.prykhozhij@gmail.com</font></strong>. I can only make it better if you tell me when you encounter a problem.</p>
+
+<h3>Interface</h3>
+<p>All inputs and parameters are set using the panel to the left. At the right side, there are two tabs: <strong>Instructions</strong> and <strong>Results</strong>. Due to the number of inputs, the user needs to provide all of them and then press <strong>Submit</strong> button. Afterwards, oligo options can be changed and their update will result in automatic update of the <strong>Results</strong> tab.</p>
+
+<h3>Step-by-step Instructions</h3>
+<h4>1. Provide mutation and sequence data:</h4>
+<p><strong>GENE MUTATION</strong> input tab should be used to provide <strong>Gene name</strong> and <strong>Mutation</strong>.</p>
+
+<p><strong>GENE SEQUENCE DATA</strong> input tab should be used to provide the sequence data. You should choose either <font style= "color: blue">MANUAL DATA INPUT</font> or <font style= "color: blue">ID-BASED INPUT</font> tab for your input. For the <font style= "color: blue">MANUAL DATA INPUT</font>, you need to enter <strong>Coding DNA sequence</strong>, <strong>Mutation site exon sequence</strong>, <strong>5' flanking fragment</strong> and <strong>3' flanking fragment</strong>. Flanking fragments are typically introns but can be other genomic sequences when mutations are close to the beginning or end of the gene. For <font style= "color: blue">ID-BASED INPUT</font>, you need to select the <strong>Species</strong> (model species and agriculturally important species in Ensembl) and provide the correct <strong>Ensembl Transcript ID</strong> input.</p>
+
+<h4>2. Input primers</h4>
+<p>The <strong>PCR PRIMERS</strong> section allows for input of primers needed to produce a PCR amplicon around the knock-in mutation site, which we will also call <strong>site assay</strong>. Each of these primers needs to be &ge; 100 bp and &le; 300 from the mutation site. It is best to use the primers that you used initially for guide RNA activity analysis.</p>
+
+<h4>3. Enter guide RNA parameters</h4>
+<p>The <strong>GUIDE RNA PARAMETERS</strong> section is essential for specifying how your target site will be cut by your CRISPR strategy. For your sgRNA or another CRISPR RNA (crRNA), you need to enter <strong>sgRNA sequence</strong>, <strong>sgRNA orientation</strong> and <strong>CRISPR type and PAM sequence</strong>.</p>
+
+<h4>4. Specify oligo options</h4>
+<p>The <strong>OLIGO OPTIONS</strong> section allows the user to specify the structure of the oligos and extra mutations to be designed by the program. The <strong>left arm length</strong> and <strong>right arm length</strong> options define the homology arm structure of the oligos. You also need to specify <strong>Oligo orientation</strong> parameter. The next option asks the user if they want to introduce synonymous codon mutations within PAM and sgRNA. This option only applies to class 2, type II (Cas9) enzymes because the PAM is close to the cut (3 bp), whereas the Cas12a/Cpf1 enzymes have 18 bp distance between the PAM and cut site. The last option is whether to introduce restriction enzyme sites by synonymous codon mutations. This option enables restriction site introduction by a single synonymous codon mutation per oligo in one of the 3 codons closest to the target mutation on either side.</p>
+
+<h3>Results</h3>
+<p>This tab contains the <strong>TARGETING STRATEGY OUTLINE</strong> section showing the location of site assay primers in the exon and flanking sequences, exon and intron sequences within the site assay amplicon, guide RNA and PAM location and last but not least, target codon.</p>
+
+<p>The main section for design output is <strong>RESULTS OF THE OLIGO DESIGN</strong> which contains a variable number of oligo data output containers. Each of these containers contains the oligo sequence with target codon, PAM and mutations marked as before. Restriction sites are also shown under the sequence as well as the sizes of fragments that these enzymes generate. Next, allele-specific PCR primers and assays are shown in tables, which can be toggled to be shown or hidden by clicking on a link. Finally, a textarea with all the oligo names and  sequences is provided to enable the user to export the design data.</p>
+
+<h3>Acknowledgements</h3>
+  <p> <strong>R</strong>: R Core Team (2013). R: A language and environment for statistical computing. R Foundation for
+  Statistical Computing, Vienna, Austria. URL http://www.R-project.org/.</p>
+
+  <p><strong>Biostrings</strong>: H. Pages, P. Aboyoun, R. Gentleman and S. DebRoy. Biostrings: String objects representing
+  biological sequences, and matching algorithms. R package version 2.30.0.</p>
+
+  <p><strong>shiny</strong>: RStudio and Inc. (2013). shiny: Web Application Framework for R. R package version 0.8.0.
+  http://CRAN.R-project.org/package=shiny</p>
+  
+  
