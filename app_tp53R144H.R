@@ -1,14 +1,18 @@
 # knockinDesigner shiny app
 
-library(shiny)
-library(shinyFeedback)
 library(stringr)
 library(Biostrings)
 library(seqinr)
 library(biomaRt)
 library(DECIPHER)
 library(TmCalculator)
+library(httr)
+library(jsonlite)
+library(xml2)
+library(shiny)
 library(shinyjs)
+library(shinyFeedback)
+library(shinycssloaders)
 
 
 # Define UI for application that draws a histogram
@@ -45,8 +49,17 @@ ui <- shinyUI(fluidPage(
                              
                              column(12,textAreaInput("CDS", "atggcgcaaaacgacagccaagagttcgcggagctctgggagaagaatttgataagtattcagcccccaggtggtggctcttgctgggacatcattaatgatgaggagtacttgccgggatcgtttgaccccaatttttttgaaaatgtgcttgaagaacagcctcagccatccactctcccaccaacatccactgttccggagacaagcgactatcccggcgatcatggatttaggctcaggttcccgcagtctggcacagcaaaatctgtaacttgcacttattcaccggacctgaataaactcttctgtcagctggcaaaaacttgccccgttcaaatggtggtggacgttgcccctccacagggctccgtggttcgagccactgccatctataagaagtccgagcatgtggctgaagtggtccgcagatgcccccatcatgagcgaaccccggatggagataacttggcgcctgctggtcatttgataagagtggagggcaatcagcgagcaaattacagggaagataacatcactttaaggcatagtgtttttgtcccatatgaagcaccacagcttggtgctgaatggacaactgtgctactaaactacatgtgcaatagcagctgcatgggggggatgaaccgcaggcccatcctcacaatcatcactctggagactcaggaaggtcagttgctgggccggaggtcttttgaggtgcgtgtgtgtgcatgtccaggcagagacaggaaaactgaggagagcaacttcaagaaagaccaagagaccaaaaccatggccaaaaccaccactgggaccaaacgtagtttggtgaaagaatcttcttcagctacattacgacctgaggggagcaaaaaggccaagggctccagcagcgatgaggagatctttaccctgcaggtgaggggcagggagcgttatgaaattttaaagaaattgaacgacagtctggagttaagtgatgtggtgcctgcctcagatgctgaaaagtatcgtcagaaattcatgacaaaaaacaaaaaagagaatcgtgaatcatctgagcccaaacagggaaagaagctgatggtgaaggacgaaggaagaagcgactctgattaa", label ="Coding DNA sequence", height = "100px")),
                              column(12,textAreaInput("exon", "tattcaccggacctgaataaactcttctgtcagctggcaaaaacttgccccgttcaaatggtggtggacgttgcccctccacagggctccgtggttcgagccactgccatctataagaagtccgagcatgtggctgaagtggtccgcagatgcccccatcatgagcgaaccccggatggagata", label ="Mutation site exon sequence",  height = "50px")),
+                           ), 
+                           
+                           fluidRow(
+                             
+                             column(12, p(class = "panel-title",style="font-size: 16px; color: blue", "Optional flanking sequences", "(one/both primers bind the exon):"), p()),
+                           ),
+                           
+                           
+                           fluidRow(
                              column(12,textAreaInput("intron5", "tatctctttaaagcaccagtactaaggaataccccagtcaataatatctcatatttaatctgctttctcattaattttagtcatgattcttacattaacttgtttagtttctaccgatactaataaaaactgcttggatggattattgaacttttttttttaagtgctaaactataacaactgggtgaaacttatttttttgtaattgcag", label ="5' flanking fragment (>100 bp if possible)", height = "50px")),
-                             column(12,textAreaInput("intron3", "gtacagacatttttttttccatatccattcttgcatcattctaggcctgcactattaattgattttaaaccaaaatgacgatttgaaaaggtgtgttttttttttgttgttttttgccagaaactgtgattattttgtttattactatggcgagggaggcaagtgtgtgtaattaaaacgatccaactaatgttagttaaaaagc", label ="3' flanking fragment (>100 bp if possible)", height = "50px"))          
+                             column(12,textAreaInput("intron3", "gtacagacatttttttttccatatccattcttgcatcattctaggcctgcactattaattgattttaaaccaaaatgacgatttgaaaaggtgtgttttttttttgttgttttttgccagaaactgtgattattttgtttattactatggcgagggaggcaagtgtgtgtaattaaaacgatccaactaatgttagttaaaaagc", label ="3' flanking fragment (>100 bp if possible)", height = "50px"))
                            )
                   ),
                   
@@ -128,8 +141,6 @@ ui <- shinyUI(fluidPage(
         
       ),
       
-     
-      
       fluidRow(
         
         column(6, radioButtons("mutatePAM", "Synonymous codon mutations of PAM or sgRNA spacer?",
@@ -142,7 +153,6 @@ ui <- shinyUI(fluidPage(
       ),
       
        
-      
       actionButton("run", "Submit")
     ), # end of sidebarPanel      
     
@@ -150,62 +160,42 @@ ui <- shinyUI(fluidPage(
       # a bit of space from the top banner
       tags$p(),
       
-      
       # panels for instructions 
       tabsetPanel(id="maintabset",
                   
                   tabPanel(p(class = "panel-title",style="width: 100%, font-size: 14px; color: blue", "Instructions"), value = "Instructions", includeHTML("instructions.html")),
-                  
                   tabPanel(p(class = "panel-title",style="width: 100%, font-size: 14px; color: blue", "Results"), value = "Results", 
                           
-                           # commented out because of no useful purpose                           
-                           # conditionalPanel(
-                           #   condition = "input.run == FALSE", 
-                           #   tags$p("Oligo output data will be shown here once the program runs.")
-                           # ),
-                           
                            conditionalPanel(
-                             
                              condition = "input.run == TRUE",
                              
                              # UI output
-                             uiOutput('finalOligos')
-                             
+                             withSpinner(uiOutput('finalOligos'), type = 4)
                            )
-                           
-                           
-                           
                   )
-                  
       )
-      
-      
-
-      
     ) # end of mainPanel
     
   )
 ))
-
-
 
 # Define server logic to design oligos for point mutation knock-in
 server <- function(input, output, session) {
   
   # this is the code for updating the relevant tab panel
   observeEvent(input$run, {
-  if( (input$run >= 1) & (input$Mutation != '') ){
+    if( (input$run >= 1) & (input$Mutation != '') ){
+      
+      updateTabsetPanel(session, "maintabset", selected = "Results")    
+    }
     
-    updateTabsetPanel(session, "maintabset", selected = "Results")    
-  }
-
   })
-
+  
   
   #################################
   # shinyFeedback section
   #################################
-
+  
   # shinyFeedback code for Mutation input
   observeEvent(input$Mutation, {
     # Mutation is not empty but it does not conform to the pattern
@@ -329,17 +319,6 @@ server <- function(input, output, session) {
   # shinyFeedback code for 5' flanking sequence input
   observeEvent(input$intron5, {
     
-    # the input has been submitted but the exon input was empty      
-    if(input$run & str_trim(input$intron5) == ""){
-      
-      feedbackWarning(
-        inputId = "intron5",
-        condition = str_trim(input$intron5) == "",
-        text = "5' flanking sequence cannot be blank. Please enter the 5' flanking sequence."
-      )
-      
-    }
-    
     # give a Success message once a 5' flanking sequence satisfies the requirements
     if(str_trim(input$intron5) != ""){
       intr5_input <- toupper(str_trim(input$intron5))
@@ -369,17 +348,6 @@ server <- function(input, output, session) {
   
   # shinyFeedback code for 3' flanking sequence input
   observeEvent(input$intron3, {
-    
-    # the input has been submitted but the exon input was empty      
-    if(input$run & str_trim(input$intron3) == ""){
-      
-      feedbackWarning(
-        inputId = "intron3",
-        condition = str_trim(input$intron3) == "",
-        text = "3' flanking sequence cannot be blank. Please enter the 3' flanking sequence."
-      )
-      
-    }
     
     # give a Success message once a 3' flanking sequence satisfies the requirements
     if(str_trim(input$intron3) != ""){
@@ -668,7 +636,7 @@ server <- function(input, output, session) {
       if(PAM == "NTTN"){ PAM_pattern = "[ATGC]AA[ATGC]" }
       # "YTTN"
       if(PAM == "YTTN"){ PAM_pattern = "[ATGC]AA[AG]" }      
-            
+      
     } # end of PAM sequence definition
     
     PAM_pattern
@@ -682,6 +650,19 @@ server <- function(input, output, session) {
     for(i in 1:3){
       if(substr(codon1, i, i) != substr(codon2, i, i)){
         coordinates <- c(coordinates, firstPos + i - 1)
+      }
+    }
+    return(coordinates)
+  }
+  
+  # get primer coordinate differences
+  getPrimerDiffs <- function(primer1, primer2){
+    coordinates <- c()
+    
+    # here we can assume that primers are of identical sizes
+    for(i in 1:nchar(primer1)){
+      if(substr(primer1, i, i) != substr(primer2, i, i)){
+        coordinates <- c(coordinates, i)
       }
     }
     return(coordinates)
@@ -967,8 +948,8 @@ server <- function(input, output, session) {
     # mutation validation
     mutString <- str_trim(input$Mutation)
     
-    validate(need( mutString != "", "Mutation name cannot be blank. Please enter a mutation."))    
-    validate(need(str_detect(mutString, "^[:alpha:]\\d{1,5}[a-zA-Z*]$"), "Mutation must have the pattern A123C or A123*, * - a stop codon. Please correct this." ))
+    shiny::validate(need( mutString != "", "Mutation name cannot be blank. Please enter a mutation."))    
+    shiny::validate(need(str_detect(mutString, "^[:alpha:]\\d{1,5}[a-zA-Z*]$"), "Mutation must have the pattern A123C or A123*, * - a stop codon. Please correct this." ))
     
     # if OK, store codon number
     codonNum <- as.integer(substr(mutString, 2, nchar(mutString)-1))
@@ -984,50 +965,82 @@ server <- function(input, output, session) {
     if(input$species != "" & input$gene != "" & input$transcriptID != "" ){
       
       # get the basic input information
-      dataset_input <- input$species
       trID <- str_trim(input$transcriptID)
       
-      # validate the Ensembl transcript ID
-      validate( need(str_detect(trID, "ENS[A-Z]{3}T[0-9]{11}"), "Please enter a valid Ensembl Transcript ID") )
+      # shiny::validate the Ensembl transcript ID
+      shiny::validate( need(str_detect(trID, "ENS[A-Z]{0,3}T[0-9]{11}"), "Please enter a valid Ensembl Transcript ID") )
+      
+      #########################################
+      # get transcript information
+      
+      server <- "https://rest.ensembl.org"
+      
+      ext <- paste0("/lookup/id/", trID, "?expand=1")
+      r <- GET(paste(server, ext, sep = ""), content_type("application/json"))
+      
+      # use this if you get a simple nested list back, otherwise inspect its structure
+      # head(data.frame(t(sapply(content(r),c))))
+      transcriptInfo <- fromJSON(toJSON(content(r)))
       
       
-      # query Ensembl Biomart using biomaRt package
-      ensembl <-  useMart("ensembl", dataset= dataset_input)
-      
+      #####################################
       # obtain exon sequences
-      exon_seqs <- getSequence(id = trID, type="ensembl_transcript_id", seqType="gene_exon", mart=ensembl)
       
-      # getting unspliced transcript
-      unspl_transcript <- getSequence(id = trID, type="ensembl_transcript_id", seqType="transcript_exon_intron", mart=ensembl) 
+      # obtain IDs
+      exonIDs <- unlist(transcriptInfo$Exon$id)
+      
+      ext <- "/sequence/id"
+      
+      exons_search_string <- paste0('{ "ids" : [', paste(shQuote(exonIDs, type="cmd"), collapse=", "), '] }')
+      exons_search_string
+      
+      r <- POST(paste(server, ext, sep = ""), content_type("application/json"), accept("application/json"), body = exons_search_string)
+      content(r)
+      
+      exon_seqs0 <-  unlist(fromJSON(toJSON(content(r)))$seq)
+      
+      #######################################
+      # obtain unspliced genomic sequence for the transcript
+      geneID <- transcriptInfo$Parent
+      
+      ext <- paste0("/sequence/id/", geneID, "?")
+      
+      r <- GET(paste(server, ext, sep = ""), content_type("application/json"))
+      
+      unspl_transcript <- content(r)$`seq`
+      
       
       # once both the exon sequences and the whole unspliced transcript are obtained,
       # it will be necessary to 
       
       # 1. Map the mutation to the target exon.
       
-      # define the coding sequence (CDS)
-      CDS_seq <- getSequence(id = trID, type="ensembl_transcript_id", seqType="coding", mart=ensembl)
-      CDS_input <- toupper(CDS_seq$coding)
+      #######################################
+      # obtain CDS sequence
+      ext <- paste0("/sequence/id/", trID, "?type=cds")
+      r <- GET(paste(server, ext, sep = ""), content_type("application/json"))
+      CDS_input <- content(r)$seq
       
       
-      # also get the full cDNA sequence 
-      CDNA_seq <- getSequence(id = trID, type="ensembl_transcript_id", seqType="cdna", mart=ensembl)
-      
+      #######################################
+      # obtain cDNA sequence
+      ext <- paste0("/sequence/id/", trID, "?type=cdna")
+      r <- GET(paste(server, ext, sep = ""), content_type("application/json"))
+      CDNA_seq <- content(r)$seq
       
       # step 1 algorithm:
       # 1. match all exons to the cDNA to get their coordinates within the cDNA
-      exon_cDNA_matches <- str_locate_all(CDNA_seq$cdna, exon_seqs$gene_exon) 
+      exon_cDNA_matches <- str_locate_all(CDNA_seq, exon_seqs0) 
       length(exon_cDNA_matches)
       
       # iterate over the whole list and store starts and ends sep
       df <- data.frame(matrix(unlist(exon_cDNA_matches), nrow=length(exon_cDNA_matches), byrow=T))
       
-      exon_seqs$start <- df$X1
-      exon_seqs$end <- df$X2
+      exon_seqs <- data.frame(gene_exon = exon_seqs0, start = df$X1, end = df$X2) 
       
       # 2. match the cDNA up to and including the mutation codon against the cDNA, derive the 
       #    mutation codon coordinate based on this match.
-      CDS_cDNA_match <- str_locate(CDNA_seq$cdna, substr(CDS_seq$coding, 1, 3*codonNum))
+      CDS_cDNA_match <- str_locate(CDNA_seq, substr(CDS_input, 1, 3*codonNum))
       codon_end_coord <- as.integer(CDS_cDNA_match[1,]["end"])
       
       
@@ -1036,7 +1049,7 @@ server <- function(input, output, session) {
       exon_input <- toupper(target_exon_df$gene_exon)
       
       # 4. Match the target exon to the unspliced transcript sequence and extract 5' and 3' intron sequences.
-      target_unspl_match <- str_locate(unspl_transcript$transcript_exon_intron, toupper(exon))
+      target_unspl_match <- str_locate(unspl_transcript, toupper(exon_input))
       
       target_exon_unspl_start <- as.integer(target_unspl_match[1,1])
       target_exon_unspl_end <- as.integer(target_unspl_match[1,2])
@@ -1046,29 +1059,22 @@ server <- function(input, output, session) {
       # test that there is enough sequence on the 5' side
       if(target_exon_unspl_start >= 301){
         
-        intron5 <- substr(unspl_transcript$transcript_exon_intron, target_exon_unspl_start - 300, target_exon_unspl_start-1)
+        intron5 <- substr(unspl_transcript, target_exon_unspl_start - 300, target_exon_unspl_start-1)
         
       } else{
         
-        # retrieve 300 bp upstream and join this sequence with the unspliced sequence
-        flank5 <- getSequence(id = trID, type="ensembl_transcript_id", seqType="gene_flank", upstream = 300, mart=ensembl)
-        
-        # add the 5' flanking region to the 5' "intron"
-        intron5 <- paste(flank5$gene_flank, substr(unspl_transcript$transcript_exon_intron, 1, target_exon_unspl_start-1), sep = "")
+        # take the shorter 5' intron
+        intron5 <- substr(unspl_transcript, 1, target_exon_unspl_start-1)
       }
       
       # test if there is enough sequence on the 3' side
-      if(nchar(unspl_transcript$transcript_exon_intron) >= target_exon_unspl_end + 300 ){
+      if(nchar(unspl_transcript) >= target_exon_unspl_end + 300 ){
         
-        intron3 <- substr(unspl_transcript$transcript_exon_intron, target_exon_unspl_end + 1, target_exon_unspl_end + 300)
+        intron3 <- substr(unspl_transcript, target_exon_unspl_end + 1, target_exon_unspl_end + 300)
         
       }else{
-        # retrieve 300 bp downstream from the transcript
-        flank3 <- getSequence(id = trID, type="ensembl_transcript_id", seqType="gene_flank", downstream = 300, mart=ensembl)    
-        
-        unspl_transcript_flanked <- paste(unspl_transcript$transcript_exon_intron, flank3$gene_flank, sep = "")
-        
-        intron3 <- substr(unspl_transcript_flanked, target_exon_unspl_end + 1, target_exon_unspl_start + 300)
+        # retrieve as much as possible of the gene sequence
+        intron3 <- substr(unspl_transcript, target_exon_unspl_end + 1, nchar(unspl_transcript))
       }
       
       # store the results of intron/flanking sequence selection 
@@ -1084,7 +1090,7 @@ server <- function(input, output, session) {
       intron5_input <- toupper(input$intron5)
       intron3_input <- toupper(input$intron3)
       
-      ## validate the input sequences
+      ## shiny::validate the input sequences
       
       # trimming the whitespace on both sides of the sequence
       CDS_input <- str_trim(CDS_input)
@@ -1092,9 +1098,9 @@ server <- function(input, output, session) {
       lettersCDS <- unique(strsplit(CDS_input, "")[[1]])
       
       # validation of the sequence
-      validate(need( CDS_input != "", "CDS cannot be blank. Please enter a CDS"))
-      validate(need( nchar(CDS_input) %% 3 == 0, "The length of CDS must be divisible by 3. Please enter a correct coding sequence."))
-      validate(need(sum(lettersCDS %in% DNA_BASES) == length(lettersCDS), "Please provide a correct coding sequence"))
+      shiny::validate(need( CDS_input != "", "CDS cannot be blank. Please enter a CDS"))
+      shiny::validate(need( nchar(CDS_input) %% 3 == 0, "The length of CDS must be divisible by 3. Please enter a correct coding sequence."))
+      shiny::validate(need(sum(lettersCDS %in% DNA_BASES) == length(lettersCDS), "Please provide a correct coding sequence"))
       
       # validation of the mutation string
       
@@ -1103,7 +1109,7 @@ server <- function(input, output, session) {
       wt_codon <- substr(CDS_input, codonCDS_pos[1], codonCDS_pos[2] )
       actAA <- toupper(substr(mutString, 1, 1))
       # perform validation
-      validate(need(GENETIC_CODE[[wt_codon]] == actAA, paste("The codon at position ", codonNum, " does not code for ", actAA, sep = "")))
+      shiny::validate(need(GENETIC_CODE[[wt_codon]] == actAA, paste("The codon at position ", codonNum, " does not code for ", actAA, sep = "")))
       
       # trimming the whitespace on both sides of the sequence
       exon_input <- str_trim(exon_input)
@@ -1111,8 +1117,8 @@ server <- function(input, output, session) {
       lettersExon <- unique(strsplit(exon_input, "")[[1]])
       
       # validation of the sequence
-      validate(need( exon_input != "", "Exon sequence cannot be blank. Please enter the exon sequence"))
-      validate(need(sum(lettersExon %in% DNA_BASES) == length(lettersExon), "Please provide a correct exon sequence")) 
+      shiny::validate(need( exon_input != "", "Exon sequence cannot be blank. Please enter the exon sequence"))
+      shiny::validate(need(sum(lettersExon %in% DNA_BASES) == length(lettersExon), "Please provide a correct exon sequence")) 
       
       
       # trimming the whitespace on both sides of the sequence
@@ -1121,8 +1127,9 @@ server <- function(input, output, session) {
       lettersIntron5 <- unique(strsplit(intron5_input, "")[[1]])
       
       # validation of the sequence
-      validate(need(intron5_input != "", "5' intron sequence cannot be blank. Please enter the 5' intron sequence"))
-      validate(need(sum(lettersIntron5 %in% DNA_BASES) == length(lettersIntron5), "Please provide a correct 5' intron sequence")) 
+      if(intron5_input != ""){
+        shiny::validate(need(sum(lettersIntron5 %in% DNA_BASES) == length(lettersIntron5), "Please provide a correct 5' intron sequence")) 
+      }
       
       
       # trimming the whitespace on both sides of the sequence
@@ -1131,49 +1138,49 @@ server <- function(input, output, session) {
       lettersIntron3 <- unique(strsplit(intron3_input, "")[[1]])
       
       # validation of the sequence
-      validate(need(intron3_input != "", "3' intron sequence cannot be blank. Please enter the 3' intron sequence"))
-      validate(need(sum(lettersIntron3 %in% DNA_BASES) == length(lettersIntron3), "Please provide a correct 3' intron sequence")) 
+      
+      if(intron3_input != ""){
+        shiny::validate(need(sum(lettersIntron3 %in% DNA_BASES) == length(lettersIntron3), "Please provide a correct 3' intron sequence")) 
+      }
       
       
     }# end of else for manual data input
     
-    # validation of the exon being inside the CDS
-    validate( need(str_detect(CDS_input, exon_input), "Please make sure your input exon matches the coding sequence.") )
     
     # generate a genomicString variable
     genomicString <- paste(intron5_input, exon_input, intron3_input, sep="")
     
-    # retrieve forward primer and reverse primers and validate them
+    # retrieve forward primer and reverse primers and shiny::validate them
     forw_primer <- toupper(str_trim(input$forw_primer))
     rev_primer <- toupper(str_trim(input$rev_primer))
     
     # empty primer fields
-    validate(need( forw_primer != "", "Forward primer sequence cannot be blank. Please enter a forward primer sequence"))
-    validate(need( rev_primer != "", "Reverse primer sequence cannot be blank. Please enter a reverse primer sequence"))
+    shiny::validate(need( forw_primer != "", "Forward primer sequence cannot be blank. Please enter a forward primer sequence"))
+    shiny::validate(need( rev_primer != "", "Reverse primer sequence cannot be blank. Please enter a reverse primer sequence"))
     
     # matching test for the forward primer
-    validate( need(str_detect(genomicString, forw_primer), "Please make sure your forward primer matches precisely either your flanking sequence or exon.") )
+    shiny::validate( need(str_detect(genomicString, forw_primer), "Please make sure your forward primer matches precisely either your flanking sequence or exon.") )
     
     # make a reverse complement of the reverse primer
     rc_rev_primer <- as.character(reverseComplement(DNAString(rev_primer)))
     
     # matching test for the reverse primer
-    validate( need(str_detect(genomicString, rc_rev_primer), "Please make sure your reverse primer matches precisely either your exon or flanking sequence.") )
+    shiny::validate( need(str_detect(genomicString, rc_rev_primer), "Please make sure your reverse primer matches precisely either your exon or flanking sequence.") )
     
     # retrieve the input sgRNA and validate it with respect to the genomic string
     # this would also validate the orientation of the sgRNA
     
     
     sgRNA <- toupper(str_trim(input$sgRNA_seq))
-    validate(need(sgRNA != "", "sgRNA sequence cannot be blank. Please enter the a sgRNA sequence"))
+    shiny::validate(need(sgRNA != "", "sgRNA sequence cannot be blank. Please enter the a sgRNA sequence"))
     
     if(input$oriented == "sense"){
-      validate( need(str_detect(genomicString, sgRNA), "Please make sure your sgRNA matches your sequence precisely and the orientation is correct.") )
+      shiny::validate( need(str_detect(genomicString, sgRNA), "Please make sure your sgRNA matches your sequence precisely and the orientation is correct.") )
     } else{
       
       rc_sgRNA <- as.character(reverseComplement(DNAString(sgRNA)))
       
-      validate( need(str_detect(genomicString, rc_sgRNA), "Please make sure your sgRNA matches your sequence precisely and the orientation is correct.") )
+      shiny::validate( need(str_detect(genomicString, rc_sgRNA), "Please make sure your sgRNA matches your sequence precisely and the orientation is correct.") )
       
     }
     
@@ -1199,7 +1206,7 @@ server <- function(input, output, session) {
       align_sgRNA <- matchPattern(sgRNA_rc, genomicString)
       start_sgR  <- start(align_sgRNA)
       end_sgR  <- end(align_sgRNA)
-    
+      
     } # end of PAM coordinates definition 
     
     # 2. get PAM coordinates using a function
@@ -1213,7 +1220,7 @@ server <- function(input, output, session) {
     PAM_pattern <- getPAM_pattern(input$oriented, input$PAM)  
     
     # 4. perform validation based on regular expression of extracted PAM sequences with the corresponding PAM pattern
-    validate( need(str_detect(PAM_seq, PAM_pattern), "Please make sure your CRISPR system is selected correctly so the PAM matches the sequence.") )
+    shiny::validate( need(str_detect(PAM_seq, PAM_pattern), "Please make sure your CRISPR system is selected correctly so the PAM matches the sequence.") )
     
     #########################################################
     # END of validation section
@@ -1374,26 +1381,27 @@ server <- function(input, output, session) {
     # store parameters for Tm calculation 
     ambiguous=TRUE
     userset=NULL
-    variant="Primer3Plus"
     Na=0
     K=50
     Tris=10
     Mg=1.5
     dNTPs=0.2
     mismatch=TRUE
+    dnac = 100
+    saltcorr = 1
     
     # vector for storing Tms
     Temperatures <- c()
     
     for(i in 1:8){
-      Temperatures[i] <- Tm_NN(primers[i], ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN4",
-                               tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = 25,
-                               dnac2 = 25, selfcomp = FALSE, Na, K, Tris, Mg, dNTPs, saltcorr = 5)
+      Temperatures[i] <- Tm_NN(primers[i], ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN3",
+                               tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = dnac,
+                               dnac2 = dnac, selfcomp = FALSE, Na = Na, K = K, Tris = Tris, Mg = Mg, dNTPs = dNTPs, saltcorr = saltcorr)
     }
     
-    rev_primer_Tm <- Tm_NN(rev_primer, ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN4",
-                           tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = 25,
-                           dnac2 = 25, selfcomp = FALSE, Na, K, Tris, Mg, dNTPs, saltcorr = 5)
+    rev_primer_Tm <- Tm_NN(rev_primer, ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN3",
+                           tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = dnac,
+                           dnac2 = dnac, selfcomp = FALSE, Na = Na, K = K, Tris = Tris, Mg = Mg, dNTPs = dNTPs, saltcorr = saltcorr)
     
     # calculate Tm differences between all candidate primers and the reverse primer
     diffs <- abs(Temperatures - rev_primer_Tm) 
@@ -1407,13 +1415,14 @@ server <- function(input, output, session) {
     # selected wild-type primer
     wt_primer <- substr(wt_seq, lastCodonDifference - lengths[k] + 1, lastCodonDifference)
     
-    Tm_wt_primer = Tm_NN(wt_primer, ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN4",
-                         tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = 25,
-                         dnac2 = 25, selfcomp = FALSE, Na, K, Tris, Mg, dNTPs, saltcorr = 5)
+    Tm_wt_primer = Tm_NN(wt_primer, ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN3",
+                         tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = dnac,
+                         dnac2 = dnac, selfcomp = FALSE, Na = Na, K = K, Tris = Tris, Mg = Mg, dNTPs = dNTPs, saltcorr = saltcorr)
     
     # return the list with the mutant and wild-type forward primers
-    list(mut_forw_primer = list(sequence = selected_mut_primer, Tm = Temperatures[k]), wt_forw_primer = list(sequence = wt_primer, Tm = Tm_wt_primer),
-         common_rev_primer = list(sequence = rev_primer, Tm = rev_primer_Tm))  
+    list(mut_forw_primer = list(sequence = selected_mut_primer, Tm = round(Temperatures[k], 1)), 
+         wt_forw_primer = list(sequence = wt_primer, Tm = round(Tm_wt_primer, 1)),
+         common_rev_primer = list(sequence = rev_primer, Tm = round(rev_primer_Tm, 1) ))  
   }
   
   # code to design forward AS-PCR primers
@@ -1437,26 +1446,27 @@ server <- function(input, output, session) {
     # store parameters for Tm calculation 
     ambiguous=TRUE
     userset=NULL
-    variant="Primer3Plus"
     Na=0
     K=50
     Tris=10
     Mg=1.5
     dNTPs=0.2
     mismatch=TRUE
+    dnac = 100
+    saltcorr = 1
     
     # vector for storing Tms
     Temperatures <- c()
     
     for(i in 1:8){
-      Temperatures[i] <- Tm_NN(primers[i], ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN4",
-                               tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = 25,
-                               dnac2 = 25, selfcomp = FALSE, Na, K, Tris, Mg, dNTPs, saltcorr = 5)
+      Temperatures[i] <- Tm_NN(primers[i], ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN3",
+                               tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = dnac,
+                               dnac2 = dnac, selfcomp = FALSE, Na = Na, K = K, Tris = Tris, Mg = Mg, dNTPs = dNTPs, saltcorr = saltcorr)
     }
     
-    forw_primer_Tm <- Tm_NN(forw_primer, ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN4",
-                            tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = 25,
-                            dnac2 = 25, selfcomp = FALSE, Na, K, Tris, Mg, dNTPs, saltcorr = 5)
+    forw_primer_Tm <- Tm_NN(forw_primer, ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN3",
+                            tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = dnac,
+                            dnac2 = dnac, selfcomp = FALSE, Na = Na, K = K, Tris = Tris, Mg = Mg, dNTPs = dNTPs, saltcorr = saltcorr)
     
     # calculate Tm differences between all candidate primers and the reverse primer
     diffs <- abs(Temperatures - forw_primer_Tm) 
@@ -1471,22 +1481,43 @@ server <- function(input, output, session) {
     wt_forw_oligo <- substr(wt_seq, firstCodonDifference, firstCodonDifference + lengths[k] - 1)
     wt_primer <-  toString(reverseComplement(DNAString(wt_forw_oligo)))
     
-    # return the list with the mutant and wild-type forward primers
-    list(mut_rev_primer = selected_mut_primer, wt_rev_primer = wt_primer)  
-    
-    
-    Tm_wt_primer = Tm_NN(wt_primer, ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN4",
-                         tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = 25,
-                         dnac2 = 25, selfcomp = FALSE, Na, K, Tris, Mg, dNTPs, saltcorr = 5)
+    Tm_wt_primer = Tm_NN(wt_primer, ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN3",
+                         tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = dnac,
+                         dnac2 = dnac, selfcomp = FALSE, Na = Na, K = K, Tris = Tris, Mg = Mg, dNTPs = dNTPs, saltcorr = saltcorr)
     
     # return the list with the mutant and wild-type forward primers
-    list( common_forw_primer = list(sequence = forw_primer, Tm = forw_primer_Tm), mut_rev_primer = list(sequence = selected_mut_primer, Tm = Temperatures[k]), 
-          wt_rev_primer = list(sequence = wt_primer, Tm = Tm_wt_primer))
+    list( common_forw_primer = list(sequence = forw_primer, Tm = round(forw_primer_Tm,1)), mut_rev_primer = list(sequence = selected_mut_primer, Tm = round(Temperatures[k],1)), 
+          wt_rev_primer = list(sequence = wt_primer, Tm = round(Tm_wt_primer,1) ))
     
   }
   
+  # function to label nucleotide differences in knock-in detecting primers
+  markMutatedRed <- function(mutant_primer, wt_primer){
+    # get coordinates of differences
+    diffs <-  sort(getPrimerDiffs(mutant_primer, wt_primer))
+    
+    # initialize output
+    output <- substr(mutant_primer, 1, diffs[1]-1)
+    next_diff <- diffs[2]
+    
+    for(i in diffs[1]:nchar(mutant_primer)){
+      if(i %in% diffs){
+        output <- paste0(output, "<font style='color: red'>",  substr(mutant_primer, i, i), "</font>")
+        
+      } else{
+        
+        output <- paste0(output, substr(mutant_primer, i, i))
+      }
+      
+    }
+    
+    output
+  }
+  
+  
+  
   # compile primer tables
-  primerTablesOutput <- function(forward_primers, reverse_primers){
+  primerTablesOutput <- function(forward_primers, reverse_primers, gene, Mutation){
     
     outputHTML <- ""
     
@@ -1495,15 +1526,14 @@ server <- function(input, output, session) {
     # list(mut_forw_primer = list(sequence = selected_mut_primer, Tm = Temperatures[k]), wt_forw_primer = list(sequence = wt_primer, Tm = Tm_wt_primer),
     #      common_rev_primer = list(sequence = rev_primer, Tm = rev_primer_Tm))
     
-    
-    forw_primer_table <- "<table style='width:80%'><caption style='color:blue'>Forward AS-PCR assays</caption><tr><th>Primer</th><th>Sequence</th><th>Tm</th></tr>"
-    forw_primer_table <- paste(forw_primer_table,  "<tr><td>", "KI forward" ,"</td>", 
-                               "<td>", forward_primers[["mut_forw_primer"]]$sequence,"</td>", 
+    forw_primer_table <- "<table style='width:90%; font-size: 15px;'><caption style='color:blue'>Forward AS-PCR primers</caption><tr><th>Primer</th><th>Sequence</th><th>Tm</th></tr>"
+    forw_primer_table <- paste(forw_primer_table,  "<tr><td>",paste0(gene,'_', Mutation, '_for'), "</td>", 
+                               "<td>", markMutatedRed(forward_primers[["mut_forw_primer"]]$sequence, forward_primers[["wt_forw_primer"]]$sequence),"</td>", 
                                "<td>", round(forward_primers[["mut_forw_primer"]]$Tm, 2), "</td>", "</tr>",
-                               "<tr><td>", "Wild-type forward" ,"</td>",
+                               "<tr><td>", paste0(gene, '_WT_for'), "</td>",
                                "<td>", forward_primers[["wt_forw_primer"]]$sequence,"</td>", 
                                "<td>", round(forward_primers[["wt_forw_primer"]]$Tm, 2), "</td>", "</tr>",
-                               "<tr><td>", "common reverse" ,"</td>",
+                               "<tr><td>",paste0(gene,'_common_rev'), "</td>",
                                "<td>", forward_primers[["common_rev_primer"]]$sequence,"</td>", 
                                "<td>", round(forward_primers[["common_rev_primer"]]$Tm, 2), "</td>", "</tr>",
                                "</table>", sep = "")
@@ -1511,22 +1541,51 @@ server <- function(input, output, session) {
     # list( common_forw_primer = list(sequence = forw_primer, Tm = forw_primer_Tm), mut_rev_primer = list(sequence = selected_mut_primer, Tm = Temperatures[k]), 
     #       wt_rev_primer = list(sequence = wt_primer, Tm = Tm_wt_primer))
     
-    rev_primer_table <- "<table style='width:80%'><caption style='color:blue'>Reverse AS-PCR assays</caption><tr><th>Primer</th><th>Sequence</th><th>Tm</th></tr>"
-    rev_primer_table <- paste(rev_primer_table, "<tr><td>", "common forward" ,"</td>",
+    rev_primer_table <- "<table style='width:90%; font-size: 15px;'><caption style='color:blue'>Reverse AS-PCR primers</caption><tr><th>Primer</th><th>Sequence</th><th>Tm</th></tr>"
+    rev_primer_table <- paste(rev_primer_table, "<tr><td>", paste0(gene, '_common_for'), "</td>",
                               "<td>", reverse_primers[["common_forw_primer"]]$sequence,"</td>", 
                               "<td>", round(reverse_primers[["common_forw_primer"]]$Tm, 2), "</td></tr>",
-                              "<tr><td>", "KI reverse" ,"</td>", 
-                              "<td>", reverse_primers[["mut_rev_primer"]]$sequence,"</td>", 
+                              "<tr><td>",paste0(gene, '_', Mutation, '_rev'), "</td>", 
+                              "<td>", markMutatedRed(reverse_primers[["mut_rev_primer"]]$sequence, reverse_primers[["wt_rev_primer"]]$sequence),"</td>", 
                               "<td>", round(reverse_primers[["mut_rev_primer"]]$Tm, 2), "</td></tr>",
-                              "<tr><td>", "Wild-type reverse" ,"</td>",
+                              "<tr><td>", paste0(gene, '_WT_rev'), "</td>",
                               "<td>", reverse_primers[["wt_rev_primer"]]$sequence,"</td>", 
                               "<td>", round(reverse_primers[["wt_rev_primer"]]$Tm, 2), "</td></tr>",
                               "</table>", sep = "")
+    
+    assay_table <- "<table style='width:90%; font-size: 15px;'><caption style='color:blue'>AS-PCR Assays</caption><tr><th>Assay</th><th>Forward primer</th><th>Reverse primer</th><th>Tanneal</th></tr>"  
+    assay_table <- paste(assay_table, "<tr><td>",paste0(gene, ' ', Mutation, ' ',  "forward knock-in assay"), "</td>",
+                         "<td>", paste0(gene,'_', Mutation, '_for'), "</td>", "<td>", paste0(gene,'_common_rev'),  "</td>", 
+                         "<td>", round(min(forward_primers[["mut_forw_primer"]]$Tm, forward_primers[["common_rev_primer"]]$Tm)) - 3, "</td></tr>",
+                         "<tr><td>", paste0(gene, ' wild-type ',  "forward assay"), "</td>",
+                         "<td>", paste0(gene, '_WT_for'), "</td>", "<td>", paste0(gene,'_common_rev'),  "</td>",
+                         "<td>", round(min(forward_primers[["wt_forw_primer"]]$Tm, forward_primers[["common_rev_primer"]]$Tm)) - 3, "</td></tr>",
+                         "<tr><td>",paste0(gene, ' ', Mutation, ' ', "reverse knock-in assay"), "</td>",
+                         "<td>", paste0(gene, '_common_for'), "</td>", "<td>", paste0(gene, '_', Mutation, '_rev'),  "</td>", 
+                         "<td>", round(min(reverse_primers[["common_forw_primer"]]$Tm, reverse_primers[["mut_rev_primer"]]$Tm))-3, "</td>", "</tr>",
+                         "<tr><td>", paste0(gene, ' wild-type ',  "reverse assay"), "</td>",
+                         "<td>", paste0(gene, '_common_for'), "</td>", "<td>", paste0(gene, '_WT_rev'),  "</td>",
+                         "<td>", round(min(reverse_primers[["common_forw_primer"]]$Tm, reverse_primers[["wt_rev_primer"]]$Tm))-3, "</td>", "</tr>",
+                         "</table>", sep = "")
+    
+    
+    
+    
+    rev_assay_table <- paste(assay_table, "<tr><td>",paste0(gene, ' ', Mutation, ' ', "reverse knock-in assay"), "</td>",
+                             "<td>", paste0(gene,'_', Mutation, '_for'), '\n', paste0(gene,'_common_rev'),  "</td>", 
+                             "<td>", round(min(forward_primers[["mut_forw_primer"]]$Tm, forward_primers[["common_rev_primer"]]$Tm)) - 3, "</td>", "</tr>", "</table>", sep = "")
+    
+    
     
     outputHTML <- paste(outputHTML, "<table style='width: 100%'><tr>")
     outputHTML <- paste(outputHTML, "<td>", forw_primer_table, "</td>", sep = "")
     outputHTML <- paste(outputHTML, "<td>", rev_primer_table, "</td>", sep = "")
     outputHTML <- paste(outputHTML, "</tr></table>")
+    
+    outputHTML <- paste(outputHTML, "<table style='width: 100%'><tr>")
+    outputHTML <- paste(outputHTML, "<td>", assay_table, "</td>", sep = "")
+    outputHTML <- paste(outputHTML, "</tr>")
+    outputHTML <- paste(outputHTML, "</table>")
     
     outputHTML
   }
@@ -1721,7 +1780,7 @@ server <- function(input, output, session) {
         } # end of cutters for loop
         
       } # end of if statement  for testing how many enzymes cut the sequence
-    
+      
     } 
     ##################################
     # end of result iteration
@@ -1745,7 +1804,7 @@ server <- function(input, output, session) {
     # get the coordinates of sgRNA and PAM which would be 
     # common to all mutations
     coords <-strategyCoords()
-  
+    
     # get exon and target codon coordinates
     # in order to get a complete set of codons inside the target exon
     codonPos <- coords[["codon"]]
@@ -2215,7 +2274,7 @@ server <- function(input, output, session) {
         
       } # end of if statement  for testing how many enzymes cut the sequence
       
-
+      
     } 
     ##################################
     # end of PAM_mutated iteration
@@ -2225,7 +2284,7 @@ server <- function(input, output, session) {
   }) # end of PAM_mutations
   
   
-
+  
   # adding silent mutations to introduce restriction sites
   # gets input from PAM_mutations()
   # this function will generate the final output to visualize the oligos and knock-in design
@@ -2503,243 +2562,243 @@ server <- function(input, output, session) {
         
       } # end of if statement  for testing how many enzymes cut the sequence
       
-
+      
       ###############################################
       # existing mutations do not introduce any sites
-
-        # flag for introducing a site by a synonymous mutation
-        REsite_BY_MUTATION <- FALSE
+      
+      # flag for introducing a site by a synonymous mutation
+      REsite_BY_MUTATION <- FALSE
+      
+      #############################################################
+      # codon selection for mutating to introduce restriction sites
+      #############################################################
+      
+      ################################################################
+      # The idea: test up to 3 codons on each side of the target codon
+      # taking each time a codon on the left side or right side
+      # test them for NOT being inside the mutated codon list and for being WITHIN the exon,
+      # update the respective codon pointers and if the test was positive, add the codons to the list
+      # for the candidates to be mutated
+      
+      
+      # list for codons to be mutated
+      codons2mut4REsites <- list()
+      sel_codon_id <- 1
+      
+      # total number 
+      num_checked <- 0
+      
+      # make pointers
+      left_pointer <- 1
+      right_pointer <- 1
+      
+      
+      # loop to iterate over potential codons
+      while(length(codons2mut4REsites) <= 3 & num_checked < 6 ){
         
-        #############################################################
-        # codon selection for mutating to introduce restriction sites
-        #############################################################
+        # select a codon 5' (left) from the target codon
+        leftCodon <- codonPos - left_pointer*3
         
-        ################################################################
-        # The idea: test up to 3 codons on each side of the target codon
-        # taking each time a codon on the left side or right side
-        # test them for NOT being inside the mutated codon list and for being WITHIN the exon,
-        # update the respective codon pointers and if the test was positive, add the codons to the list
-        # for the candidates to be mutated
+        # update num_checked variable
+        num_checked <- num_checked + 1
+        left_pointer <- left_pointer + 1
         
-        
-        # list for codons to be mutated
-        codons2mut4REsites <- list()
-        sel_codon_id <- 1
-        
-        # total number 
-        num_checked <- 0
-        
-        # make pointers
-        left_pointer <- 1
-        right_pointer <- 1
-        
-        
-        # loop to iterate over potential codons
-        while(length(codons2mut4REsites) <= 3 & num_checked < 6 ){
+        # check if this codon is OK
+        if( !vector_in_list(mutated_codons, leftCodon) & (leftCodon[1] >=  exonStart) ){
           
-          # select a codon 5' (left) from the target codon
-          leftCodon <- codonPos - left_pointer*3
+          codons2mut4REsites[[sel_codon_id]] <- leftCodon
+          sel_codon_id <- sel_codon_id + 1
           
-          # update num_checked variable
-          num_checked <- num_checked + 1
-          left_pointer <- left_pointer + 1
+        }          
+        
+        
+        # select a codon 3' (right) from the target codon
+        rightCodon <- codonPos + right_pointer*3
+        
+        # update num_checked variable and the pointer
+        num_checked <- num_checked + 1
+        right_pointer <- right_pointer + 1
+        
+        # check if this codon is OK
+        if( !vector_in_list(mutated_codons, rightCodon) & (rightCodon[1] <=  exonEnd) ){
           
-          # check if this codon is OK
-          if( !vector_in_list(mutated_codons, leftCodon) & (leftCodon[1] >=  exonStart) ){
+          codons2mut4REsites[[sel_codon_id]] <- rightCodon
+          sel_codon_id <- sel_codon_id + 1
+          
+        }          
+        
+        
+      } # end of while loop for finding codons to be mutated
+      
+      
+      ###########################################################
+      # synonymous mutations in the selected codons
+      # and evaluation of non-cutters on the new mutant sequences
+      ###########################################################
+      
+      # define a new vector of non-cutter enzymes
+      # the idea is that we want to remove all enzymes that have already been found
+      # and focus on the newly found ones
+      non_cutters_mut <- getNonCutters(all_enzymes, mut_site_assay)
+      
+      
+      # iterate over all potential codons to be selected
+      for(codon in codons2mut4REsites){
+        
+        # find the non-identical synonymous codons
+        selCodonSeq = toupper(substr(mut_site_assay, codon[1], codon[2]))
+        
+        # get all possible codons for the encoded amino acid
+        aa_codons = REV_GENETIC_CODE[[ GENETIC_CODE[[selCodonSeq]] ]]
+        
+        # get codons that are not identical to the current codon
+        codons_not_same = aa_codons[aa_codons != selCodonSeq]
+        
+        # perform all possible synonymous codon replacements
+        for(codon_nonID in codons_not_same){
+          
+          # make a mutant site assay version, store in a temp variable not to interfere with subsequent steps
+          mut_cds <- paste(substr(mut_site_assay, 1, codon[1]-1), codon_nonID, substr(mut_site_assay, codon[2] + 1, nchar(mut_site_assay)), sep = "")
+          
+          # make a reverse complement of the mut_cds
+          rc_mut_cds <- as.character(reverseComplement(DNAString(mut_cds)))
+          
+          # subset the site assay to a small 30-nt string for testing
+          cur_test_string <- substr(mut_cds, codon[1] - 10, codon[1] + 13)
+          
+          # run a function to get all enzymes that cut 
+          new_cutters <- getCutters(non_cutters_mut, cur_test_string)
+          
+          #####################################
+          # CUT IS SUCCESSFUL
+          #####################################
+          
+          if(length(new_cutters) > 0){
             
-            codons2mut4REsites[[sel_codon_id]] <- leftCodon
-            sel_codon_id <- sel_codon_id + 1
+            # update the flag variable
+            REsite_BY_MUTATION <- TRUE
             
-          }          
-          
-          
-          # select a codon 3' (right) from the target codon
-          rightCodon <- codonPos + right_pointer*3
-          
-          # update num_checked variable and the pointer
-          num_checked <- num_checked + 1
-          right_pointer <- right_pointer + 1
-          
-          # check if this codon is OK
-          if( !vector_in_list(mutated_codons, rightCodon) & (rightCodon[1] <=  exonEnd) ){
+            #########################################
+            # STORAGE OF RESULTS TO THE OUTPUT LIST
+            #########################################
             
-            codons2mut4REsites[[sel_codon_id]] <- rightCodon
-            sel_codon_id <- sel_codon_id + 1
+            # initiate the list for this ID
+            output_REsites[[ID]] = list()
             
-          }          
+            # store the current site assay
+            output_REsites[[ID]][["site_assay"]] <- mut_cds
+            
+            # store data on the main codon mutation
+            output_REsites[[ID]][["new_codon"]] <- new_codon
+            output_REsites[[ID]][["AA_mutation"]] <- AA_mut
+            output_REsites[[ID]][["codon_coords"]] <- codon_coords
+            output_REsites[[ID]][["codon_diffs_coords"]] <- codon_diffs_coords
+            
+            # add the information on PAM mutations to the new output data structure
+            if(item[["PAM_mutant_codon"]] != "none"){
+              
+              output_REsites[[ID]][["PAM_mutant_codon"]] <- PAM_mutant_codon
+              output_REsites[[ID]][["PAM_mut_codon_coords"]] <- PAM_mut_codon_coords            
+              output_REsites[[ID]][["PAM_mut_codon_diffs"]] <- PAM_mut_codon_diffs                  
+              output_REsites[[ID]][["sgRNA_mutations"]] <- FALSE
+              
+            } else{
+              
+              output_REsites[[ID]][["PAM_mutant_codon"]] <- "none"
+              
+            } # end of if-else statement for PAM mutation
+            
+            # check if there were any sgRNA mutations and store their parameters in variables
+            if(item[["sgRNA_mutations"]]){
+              
+              # store the sgRNA_mutations indicator
+              output_REsites[[ID]][["sgRNA_mutations"]] <- item[["sgRNA_mutations"]]
+              
+              # store all mutation difference
+              output_REsites[[ID]][["sgRNA_mut_codon_diffs"]] <- sgRNA_mut_codon_diffs
+              
+              # check that and which overlap codons are present in the data  
+              if( !is.null( item[["sgRNA_mut_codon_overlap1"]] ) ){
+                output_REsites[[ID]][["sgRNA_mut_codon_overlap1"]] <- sgRNA_mut_codon_overlap1
+              }
+              
+              if( !is.null( item[["sgRNA_mut_codon_overlap2"]] ) ){
+                output_REsites[[ID]][["sgRNA_mut_codon_overlap2"]] <- sgRNA_mut_codon_overlap2
+              }
+              
+            } else{
+              # store the sgRNA_mutations indicator
+              output_REsites[[ID]][["sgRNA_mutations"]] <- item[["sgRNA_mutations"]]
+              
+            } # end of sgRNA mutations statements                    
+            
+            # initialize the list for enzyme sites
+            output_REsites[[ID]][["enzymes"]] <- list()
+            enzID <- 1
+            
+            # define a new full list of cutter enzymes inclusing new ones by synonymous 
+            # mutations and the original PAM/sgRNA ones
+            all_cutters <- c(new_cutters, cutters)
+            
+            
+            # iterate over each enzyme to get the site coordinates and store the results
+            for(cutterEnzyme in all_cutters){
+              
+              # get cut site
+              cut_site <- as.character(RE_SITES[[cutterEnzyme]]$RE_site)
+              
+              # initialize an empty vector for coordinates
+              site_coords <- c()
+              
+              # test if the cut site in the cut site is in the main ("forward") strand
+              if(str_detect(toupper(mut_cds), cut_site)){
+                
+                # get coordinates
+                site_coords <- c(str_locate(toupper(mut_cds), cut_site))
+                
+                # store site orientation
+                site_oriented <- "sense"
+                
+              }else if(str_detect(toupper(rc_mut_cds), cut_site)){
+                # get coordinates
+                site_coords <- c(rev(nchar(rc_mut_cds) - str_locate(toupper(rc_mut_cds), cut_site) + 1 ))
+                
+                # store site orientation
+                site_oriented <- "anti"
+              } 
+              
+              
+              # condition the output on the correct matching of a restriction site
+              if(length(site_coords) > 0){
+                
+                # store the restriction site information
+                output_REsites[[ID]][["enzymes"]][[enzID]] <- list()
+                output_REsites[[ID]][["enzymes"]][[enzID]][["RE_enzyme"]] <- cutterEnzyme
+                output_REsites[[ID]][["enzymes"]][[enzID]][["RE_site"]] <- RE_SITES[[cutterEnzyme]]$Sequence
+                output_REsites[[ID]][["enzymes"]][[enzID]][["RE_site_coords"]] <- site_coords
+                
+                output_REsites[[ID]][["enzymes"]][[enzID]][["RE_site_oriented"]] <- site_oriented
+                
+                # store sequence changes that led to the site introduction
+                output_REsites[[ID]][["enzymes"]][[enzID]][["RE_site_codon"]] <- codon_nonID 
+                output_REsites[[ID]][["enzymes"]][[enzID]][["RE_site_codon_coords"]] <- codon
+                output_REsites[[ID]][["enzymes"]][[enzID]][["RE_site_codon_diffs"]] <- getCoordinatesDiffs(codon_nonID, selCodonSeq, codon[1])   
+                
+                enzID <- enzID + 1
+                
+              }
+              
+            } # end of cutters for loop
+            
+            # update ID
+            ID <- ID + 1
+            
+          } # end of if statement  for testing how many enzymes cut the sequence
           
-          
-        } # end of while loop for finding codons to be mutated
+        } # end of the for loop over synonymous codons
         
-        
-        ###########################################################
-        # synonymous mutations in the selected codons
-        # and evaluation of non-cutters on the new mutant sequences
-        ###########################################################
-        
-        # define a new vector of non-cutter enzymes
-        # the idea is that we want to remove all enzymes that have already been found
-        # and focus on the newly found ones
-        non_cutters_mut <- getNonCutters(all_enzymes, mut_site_assay)
-        
-        
-        # iterate over all potential codons to be selected
-        for(codon in codons2mut4REsites){
-          
-          # find the non-identical synonymous codons
-          selCodonSeq = toupper(substr(mut_site_assay, codon[1], codon[2]))
-          
-          # get all possible codons for the encoded amino acid
-          aa_codons = REV_GENETIC_CODE[[ GENETIC_CODE[[selCodonSeq]] ]]
-          
-          # get codons that are not identical to the current codon
-          codons_not_same = aa_codons[aa_codons != selCodonSeq]
-          
-          # perform all possible synonymous codon replacements
-          for(codon_nonID in codons_not_same){
-            
-            # make a mutant site assay version, store in a temp variable not to interfere with subsequent steps
-            mut_cds <- paste(substr(mut_site_assay, 1, codon[1]-1), codon_nonID, substr(mut_site_assay, codon[2] + 1, nchar(mut_site_assay)), sep = "")
-            
-            # make a reverse complement of the mut_cds
-            rc_mut_cds <- as.character(reverseComplement(DNAString(mut_cds)))
-            
-            # subset the site assay to a small 30-nt string for testing
-            cur_test_string <- substr(mut_cds, codon[1] - 10, codon[1] + 13)
-            
-            # run a function to get all enzymes that cut 
-            new_cutters <- getCutters(non_cutters_mut, cur_test_string)
-            
-            #####################################
-            # CUT IS SUCCESSFUL
-            #####################################
-            
-            if(length(new_cutters) > 0){
-              
-              # update the flag variable
-              REsite_BY_MUTATION <- TRUE
-              
-              #########################################
-              # STORAGE OF RESULTS TO THE OUTPUT LIST
-              #########################################
-              
-              # initiate the list for this ID
-              output_REsites[[ID]] = list()
-              
-              # store the current site assay
-              output_REsites[[ID]][["site_assay"]] <- mut_cds
-              
-              # store data on the main codon mutation
-              output_REsites[[ID]][["new_codon"]] <- new_codon
-              output_REsites[[ID]][["AA_mutation"]] <- AA_mut
-              output_REsites[[ID]][["codon_coords"]] <- codon_coords
-              output_REsites[[ID]][["codon_diffs_coords"]] <- codon_diffs_coords
-              
-              # add the information on PAM mutations to the new output data structure
-              if(item[["PAM_mutant_codon"]] != "none"){
-                
-                output_REsites[[ID]][["PAM_mutant_codon"]] <- PAM_mutant_codon
-                output_REsites[[ID]][["PAM_mut_codon_coords"]] <- PAM_mut_codon_coords            
-                output_REsites[[ID]][["PAM_mut_codon_diffs"]] <- PAM_mut_codon_diffs                  
-                output_REsites[[ID]][["sgRNA_mutations"]] <- FALSE
-                
-              } else{
-                
-                output_REsites[[ID]][["PAM_mutant_codon"]] <- "none"
-                
-              } # end of if-else statement for PAM mutation
-              
-              # check if there were any sgRNA mutations and store their parameters in variables
-              if(item[["sgRNA_mutations"]]){
-                
-                # store the sgRNA_mutations indicator
-                output_REsites[[ID]][["sgRNA_mutations"]] <- item[["sgRNA_mutations"]]
-                
-                # store all mutation difference
-                output_REsites[[ID]][["sgRNA_mut_codon_diffs"]] <- sgRNA_mut_codon_diffs
-                
-                # check that and which overlap codons are present in the data  
-                if( !is.null( item[["sgRNA_mut_codon_overlap1"]] ) ){
-                  output_REsites[[ID]][["sgRNA_mut_codon_overlap1"]] <- sgRNA_mut_codon_overlap1
-                }
-                
-                if( !is.null( item[["sgRNA_mut_codon_overlap2"]] ) ){
-                  output_REsites[[ID]][["sgRNA_mut_codon_overlap2"]] <- sgRNA_mut_codon_overlap2
-                }
-                
-              } else{
-                # store the sgRNA_mutations indicator
-                output_REsites[[ID]][["sgRNA_mutations"]] <- item[["sgRNA_mutations"]]
-                
-              } # end of sgRNA mutations statements                    
-              
-              # initialize the list for enzyme sites
-              output_REsites[[ID]][["enzymes"]] <- list()
-              enzID <- 1
-              
-              # define a new full list of cutter enzymes inclusing new ones by synonymous 
-              # mutations and the original PAM/sgRNA ones
-              all_cutters <- c(new_cutters, cutters)
-              
-              
-              # iterate over each enzyme to get the site coordinates and store the results
-              for(cutterEnzyme in all_cutters){
-                
-                # get cut site
-                cut_site <- as.character(RE_SITES[[cutterEnzyme]]$RE_site)
-                
-                # initialize an empty vector for coordinates
-                site_coords <- c()
-                
-                # test if the cut site in the cut site is in the main ("forward") strand
-                if(str_detect(toupper(mut_cds), cut_site)){
-                  
-                  # get coordinates
-                  site_coords <- c(str_locate(toupper(mut_cds), cut_site))
-                  
-                  # store site orientation
-                  site_oriented <- "sense"
-                  
-                }else if(str_detect(toupper(rc_mut_cds), cut_site)){
-                  # get coordinates
-                  site_coords <- c(rev(nchar(rc_mut_cds) - str_locate(toupper(rc_mut_cds), cut_site) + 1 ))
-                  
-                  # store site orientation
-                  site_oriented <- "anti"
-                } 
-                
-                
-                # condition the output on the correct matching of a restriction site
-                if(length(site_coords) > 0){
-
-                  # store the restriction site information
-                  output_REsites[[ID]][["enzymes"]][[enzID]] <- list()
-                  output_REsites[[ID]][["enzymes"]][[enzID]][["RE_enzyme"]] <- cutterEnzyme
-                  output_REsites[[ID]][["enzymes"]][[enzID]][["RE_site"]] <- RE_SITES[[cutterEnzyme]]$Sequence
-                  output_REsites[[ID]][["enzymes"]][[enzID]][["RE_site_coords"]] <- site_coords
-                  
-                  output_REsites[[ID]][["enzymes"]][[enzID]][["RE_site_oriented"]] <- site_oriented
-                  
-                  # store sequence changes that led to the site introduction
-                  output_REsites[[ID]][["enzymes"]][[enzID]][["RE_site_codon"]] <- codon_nonID 
-                  output_REsites[[ID]][["enzymes"]][[enzID]][["RE_site_codon_coords"]] <- codon
-                  output_REsites[[ID]][["enzymes"]][[enzID]][["RE_site_codon_diffs"]] <- getCoordinatesDiffs(codon_nonID, selCodonSeq, codon[1])   
-                  
-                  enzID <- enzID + 1
-                  
-                }
-                
-              } # end of cutters for loop
-              
-              # update ID
-              ID <- ID + 1
-              
-            } # end of if statement  for testing how many enzymes cut the sequence
-            
-          } # end of the for loop over synonymous codons
-          
-        } # end of for loop over codons2mut4REsites
-        
+      } # end of for loop over codons2mut4REsites
+      
       # } # end of if block the case SITES_EXIST_FLAG is FALSE
       
       ###############################################################################
@@ -2960,8 +3019,8 @@ server <- function(input, output, session) {
         output_REsites[[ID]][["AA_mutation"]] <- AA_mut
         output_REsites[[ID]][["codon_coords"]] <- codon_coords
         output_REsites[[ID]][["codon_diffs_coords"]] <- codon_diffs_coords
-
-
+        
+        
         # initialize the list for enzyme sites
         output_REsites[[ID]][["enzymes"]] <- list()
         enzID <- 1
@@ -2977,7 +3036,7 @@ server <- function(input, output, session) {
             
             # get coordinates
             site_coords <- c(str_locate(toupper(mut_site_assay), cut_site))    
-    
+            
             # store site orientation 
             site_oriented <- "sense"
             
@@ -3010,169 +3069,169 @@ server <- function(input, output, session) {
       
       ###############################################
       # existing mutations do not introduce any sites
-
       
-        # flag for introducing a site by a synonymous mutation
-        REsite_BY_MUTATION <- FALSE
+      
+      # flag for introducing a site by a synonymous mutation
+      REsite_BY_MUTATION <- FALSE
+      
+      #############################################################
+      # codon selection for mutating to introduce restriction sites
+      #############################################################
+      
+      ################################################################
+      # The idea: test up to 3 codons on each side of the target codon
+      # taking each time a codon on the left side or right side
+      # test them for NOT being inside the mutated codon list and for being WITHIN the exon,
+      # update the respective codon pointers and if the test was positive, add the codons to the list
+      # for the candidates to be mutated
+      
+      
+      # list for codons to be mutated
+      codons2mut4REsites <- list()
+      sel_codon_id <- 1
+      
+      # total number 
+      num_checked <- 0
+      
+      # make pointers
+      left_pointer <- 1
+      right_pointer <- 1
+      
+      
+      # loop to iterate over potential codons
+      while(length(codons2mut4REsites) <= 3 & num_checked < 6 ){
         
-        #############################################################
-        # codon selection for mutating to introduce restriction sites
-        #############################################################
+        # select a codon 5' (left) from the target codon
+        leftCodon <- codonPos - left_pointer*3
         
-        ################################################################
-        # The idea: test up to 3 codons on each side of the target codon
-        # taking each time a codon on the left side or right side
-        # test them for NOT being inside the mutated codon list and for being WITHIN the exon,
-        # update the respective codon pointers and if the test was positive, add the codons to the list
-        # for the candidates to be mutated
+        # update num_checked variable
+        num_checked <- num_checked + 1
+        left_pointer <- left_pointer + 1
         
-        
-        # list for codons to be mutated
-        codons2mut4REsites <- list()
-        sel_codon_id <- 1
-        
-        # total number 
-        num_checked <- 0
-        
-        # make pointers
-        left_pointer <- 1
-        right_pointer <- 1
-        
-        
-        # loop to iterate over potential codons
-        while(length(codons2mut4REsites) <= 3 & num_checked < 6 ){
+        # check if this codon is OK
+        if( !vector_in_list(mutated_codons, leftCodon) & (leftCodon[1] >=  exonStart) ){
           
-          # select a codon 5' (left) from the target codon
-          leftCodon <- codonPos - left_pointer*3
+          codons2mut4REsites[[sel_codon_id]] <- leftCodon
+          sel_codon_id <- sel_codon_id + 1
           
-          # update num_checked variable
-          num_checked <- num_checked + 1
-          left_pointer <- left_pointer + 1
+        }          
+        
+        
+        # select a codon 3' (right) from the target codon
+        rightCodon <- codonPos + right_pointer*3
+        
+        # update num_checked variable and the pointer
+        num_checked <- num_checked + 1
+        right_pointer <- right_pointer + 1
+        
+        # check if this codon is OK
+        if( !vector_in_list(mutated_codons, rightCodon) & (rightCodon[1] <=  exonEnd) ){
           
-          # check if this codon is OK
-          if( !vector_in_list(mutated_codons, leftCodon) & (leftCodon[1] >=  exonStart) ){
+          codons2mut4REsites[[sel_codon_id]] <- rightCodon
+          sel_codon_id <- sel_codon_id + 1
+          
+        }          
+        
+        
+      } # end of while loop for finding codons to be mutated
+      
+      
+      ###########################################################
+      # synonymous mutations in the selected codons
+      # and evaluation of non-cutters on the new mutant sequences
+      ###########################################################
+      
+      # define a new vector of non-cutter enzymes
+      # the idea is that we want to remove all enzymes that have already been found
+      # and focus on the newly found ones
+      non_cutters_mut <- getNonCutters(all_enzymes, mut_site_assay)
+      
+      # iterate over all potential codons to be selected
+      for(codon in codons2mut4REsites){
+        
+        # find the non-identical synonymous codons
+        selCodonSeq = toupper(substr(mut_site_assay, codon[1], codon[2]))
+        
+        # get all possible codons for the encoded amino acid
+        aa_codons = REV_GENETIC_CODE[[ GENETIC_CODE[[selCodonSeq]] ]]
+        
+        # get codons that are not identical to the current codon
+        codons_not_same = aa_codons[aa_codons != selCodonSeq]
+        
+        # perform all possible synonymous codon replacements
+        for(codon_nonID in codons_not_same){
+          
+          # make a mutant site assay version, store in a temp variable not to interfere with subsequent steps
+          mut_cds <- paste(substr(mut_site_assay, 1, codon[1]-1), codon_nonID, substr(mut_site_assay, codon[2] + 1, nchar(mut_site_assay)), sep = "")
+          
+          # make a reverse complement of the mut_cds
+          rc_mut_cds <- as.character(reverseComplement(DNAString(mut_cds)))
+          
+          # subset the site assay to a small 30-nt string for testing
+          cur_test_string <- substr(mut_cds, codon[1] - 10, codon[1] + 13)
+          
+          # run a function to get all enzymes that cut 
+          new_cutters <- getCutters(non_cutters_mut, cur_test_string)
+          
+          #####################################
+          # CUT IS SUCCESSFUL
+          #####################################
+          
+          if(length(new_cutters) > 0){
             
-            codons2mut4REsites[[sel_codon_id]] <- leftCodon
-            sel_codon_id <- sel_codon_id + 1
+            # update the flag variable
+            REsite_BY_MUTATION <- TRUE
             
-          }          
-          
-          
-          # select a codon 3' (right) from the target codon
-          rightCodon <- codonPos + right_pointer*3
-          
-          # update num_checked variable and the pointer
-          num_checked <- num_checked + 1
-          right_pointer <- right_pointer + 1
-          
-          # check if this codon is OK
-          if( !vector_in_list(mutated_codons, rightCodon) & (rightCodon[1] <=  exonEnd) ){
+            #########################################
+            # STORAGE OF RESULTS TO THE OUTPUT LIST
+            #########################################
             
-            codons2mut4REsites[[sel_codon_id]] <- rightCodon
-            sel_codon_id <- sel_codon_id + 1
+            # initiate the list for this ID
+            output_REsites[[ID]] = list()
             
-          }          
-          
-          
-        } # end of while loop for finding codons to be mutated
-        
-        
-        ###########################################################
-        # synonymous mutations in the selected codons
-        # and evaluation of non-cutters on the new mutant sequences
-        ###########################################################
-        
-        # define a new vector of non-cutter enzymes
-        # the idea is that we want to remove all enzymes that have already been found
-        # and focus on the newly found ones
-        non_cutters_mut <- getNonCutters(all_enzymes, mut_site_assay)
-        
-        # iterate over all potential codons to be selected
-        for(codon in codons2mut4REsites){
-          
-          # find the non-identical synonymous codons
-          selCodonSeq = toupper(substr(mut_site_assay, codon[1], codon[2]))
-          
-          # get all possible codons for the encoded amino acid
-          aa_codons = REV_GENETIC_CODE[[ GENETIC_CODE[[selCodonSeq]] ]]
-          
-          # get codons that are not identical to the current codon
-          codons_not_same = aa_codons[aa_codons != selCodonSeq]
-          
-          # perform all possible synonymous codon replacements
-          for(codon_nonID in codons_not_same){
+            # store the current site assay
+            output_REsites[[ID]][["site_assay"]] <- mut_cds
             
-            # make a mutant site assay version, store in a temp variable not to interfere with subsequent steps
-            mut_cds <- paste(substr(mut_site_assay, 1, codon[1]-1), codon_nonID, substr(mut_site_assay, codon[2] + 1, nchar(mut_site_assay)), sep = "")
+            # store data on the main codon mutation
+            output_REsites[[ID]][["new_codon"]] <- new_codon
+            output_REsites[[ID]][["AA_mutation"]] <- AA_mut
+            output_REsites[[ID]][["codon_coords"]] <- codon_coords
+            output_REsites[[ID]][["codon_diffs_coords"]] <- codon_diffs_coords
             
-            # make a reverse complement of the mut_cds
-            rc_mut_cds <- as.character(reverseComplement(DNAString(mut_cds)))
             
-            # subset the site assay to a small 30-nt string for testing
-            cur_test_string <- substr(mut_cds, codon[1] - 10, codon[1] + 13)
+            # initialize the list for enzyme sites
+            output_REsites[[ID]][["enzymes"]] <- list()
+            enzID <- 1
             
-            # run a function to get all enzymes that cut 
-            new_cutters <- getCutters(non_cutters_mut, cur_test_string)
+            # define a new full list of cutter enzymes inclusing new ones by synonymous 
+            # mutations and the original PAM/sgRNA ones
+            all_cutters <- c(new_cutters, cutters)
             
-            #####################################
-            # CUT IS SUCCESSFUL
-            #####################################
-            
-            if(length(new_cutters) > 0){
+            # iterate over each enzyme to get the site coordinates and store the results
+            for(cutterEnzyme in all_cutters){
               
-              # update the flag variable
-              REsite_BY_MUTATION <- TRUE
+              # get cut site
+              cut_site <- as.character(RE_SITES[[cutterEnzyme]]$RE_site)
               
-              #########################################
-              # STORAGE OF RESULTS TO THE OUTPUT LIST
-              #########################################
-              
-              # initiate the list for this ID
-              output_REsites[[ID]] = list()
-              
-              # store the current site assay
-              output_REsites[[ID]][["site_assay"]] <- mut_cds
-              
-              # store data on the main codon mutation
-              output_REsites[[ID]][["new_codon"]] <- new_codon
-              output_REsites[[ID]][["AA_mutation"]] <- AA_mut
-              output_REsites[[ID]][["codon_coords"]] <- codon_coords
-              output_REsites[[ID]][["codon_diffs_coords"]] <- codon_diffs_coords
-              
-
-              # initialize the list for enzyme sites
-              output_REsites[[ID]][["enzymes"]] <- list()
-              enzID <- 1
-              
-              # define a new full list of cutter enzymes inclusing new ones by synonymous 
-              # mutations and the original PAM/sgRNA ones
-              all_cutters <- c(new_cutters, cutters)
-              
-              # iterate over each enzyme to get the site coordinates and store the results
-              for(cutterEnzyme in all_cutters){
+              # test if the cut site in the cut site is in the main ("forward") strand
+              if(str_detect(toupper(mut_cds), cut_site)){
                 
-                # get cut site
-                cut_site <- as.character(RE_SITES[[cutterEnzyme]]$RE_site)
+                # get coordinates
+                site_coords <- c(str_locate(toupper(mut_cds), cut_site))
                 
-                # test if the cut site in the cut site is in the main ("forward") strand
-                if(str_detect(toupper(mut_cds), cut_site)){
-                  
-                  # get coordinates
-                  site_coords <- c(str_locate(toupper(mut_cds), cut_site))
-                  
-                  # store site orientation
-                  site_oriented <- "sense"
-                  
-                }else if(str_detect(toupper(rc_mut_cds), cut_site)){
-                  # get coordinates
-                  site_coords <- c(rev(nchar(rc_mut_cds) - str_locate(toupper(rc_mut_cds), cut_site) + 1 ))
-                  
-                  # store site orientation
-                  site_oriented <- "anti"
-                  
-                }
+                # store site orientation
+                site_oriented <- "sense"
                 
-                if(length(site_coords) > 0){
+              }else if(str_detect(toupper(rc_mut_cds), cut_site)){
+                # get coordinates
+                site_coords <- c(rev(nchar(rc_mut_cds) - str_locate(toupper(rc_mut_cds), cut_site) + 1 ))
+                
+                # store site orientation
+                site_oriented <- "anti"
+                
+              }
+              
+              if(length(site_coords) > 0){
                 
                 # store the restriction site information
                 output_REsites[[ID]][["enzymes"]][[enzID]] <- list()
@@ -3189,20 +3248,20 @@ server <- function(input, output, session) {
                 
                 enzID <- enzID + 1
                 
-                } # end of if-statement for site coordinates
-                
-              } # end of cutters for loop
+              } # end of if-statement for site coordinates
               
-              # update ID
-              ID <- ID + 1
-              
-            } # end of if statement  for testing how many enzymes cut the sequence
+            } # end of cutters for loop
             
-          } # end of the for loop over synonymous codons
+            # update ID
+            ID <- ID + 1
+            
+          } # end of if statement  for testing how many enzymes cut the sequence
           
-        } # end of for loop over codons2mut4REsites
+        } # end of the for loop over synonymous codons
         
-       # } # end of if block the case SITES_EXIST_FLAG is FALSE
+      } # end of for loop over codons2mut4REsites
+      
+      # } # end of if block the case SITES_EXIST_FLAG is FALSE
       
       ###############################################################################
       # Evaluation if the current item was mutated to introduce any restriction sites
@@ -3257,7 +3316,7 @@ server <- function(input, output, session) {
     
     # a function to output oligos with introduced restriction sites
     output$finalOligos <- renderUI({
-    
+      
       # obtain the data on the overall strategy
       # make sure the reactive code only runs when you press "Submit" button
       isolate({ coords <- strategyCoords() })
@@ -3449,1127 +3508,1108 @@ server <- function(input, output, session) {
       # "NGG","NRG", "NGA", "NGCG", "NNGRRT", "NGG"
       # "TTTV", "TTTN", "TTN", "YTN", "NTTN", "YTTN"
       
-  if(input$PAM %in% c("NGG","NRG", "NGA", "NGCG", "NNGRRT", "NGG")){
-    
-    # CASE 1: mutatePAM == "yes" AND "REsites" == "yes"
-    if ( input$mutatePAM == "yes" & input$REsites == "yes" ) {
-      
-      # the output for complete mutation design including both PAM/sgRNA and RE site mutations
-      isolate({ outputList <- REsite_silent_mutations() })
-      
-      # iterate over the list items
-      lapply(1:length(outputList), function(j) {
+      if(input$PAM %in% c("NGG","NRG", "NGA", "NGCG", "NNGRRT", "NGG")){
         
-        # get sequence
-        sequence <- toupper(outputList[[j]][["site_assay"]])
-        
-        # collect all mutated positions
-        mutated <- c()
-        PAM_muts <- c()
-        sgRNA_muts <- c()
-        REsite_muts <- c()
-      
-        # get new replacement codon sequence
-        new_codon <- substr(sequence, codon_pos[1], codon_pos[3])
-        
-        # codon mutations
-        codon_muts <- outputList[[j]][["codon_diffs_coords"]]
-        
-        # get PAM mutations is they are available
-        if(outputList[[j]][["PAM_mutant_codon"]] != "none"){
+        # CASE 1: mutatePAM == "yes" AND "REsites" == "yes"
+        if ( input$mutatePAM == "yes" & input$REsites == "yes" ) {
           
-          PAM_muts <- outputList[[j]][["PAM_mut_codon_diffs"]]
+          # the output for complete mutation design including both PAM/sgRNA and RE site mutations
+          isolate({ outputList <- REsite_silent_mutations() })
           
-        }
-        
-        # get sgRNA mutations
-        if(outputList[[j]][["sgRNA_mutations"]]){
+          ## 1. collect variables for AS-PCR primer designs
+          forw_primer_pos <- coords[["forw_primer"]]
+          rev_primer_pos <- coords[["rev_primer"]]
           
-          sgRNA_muts <- outputList[[j]][["sgRNA_mut_codon_diffs"]] 
           
-        }     
-        
-        # get the codon mutation that introduced a restriction site
-        if( "enzymes" %in% names(outputList[[j]])){
-          
-          # test if "RE_site_codon_diffs" in the relevant list
-          if("RE_site_codon_diffs" %in% names(outputList[[j]][["enzymes"]][[1]])){
-            REsite_muts <- outputList[[j]][["enzymes"]][[1]][["RE_site_codon_diffs"]]
-          }  
-        } 
-        
-        
-        # combine all mutations
-        mutated <- c(codon_muts, PAM_muts, sgRNA_muts, REsite_muts)
-        
-        # reverseComplement the sequence if the orientation is different
-        if(input$orientedOligo == "anti"){
-          
-          # update the sequence
-          sequence <- toString(reverseComplement(DNAString(sequence)))
-          
-          # update all position vectors 
-          # new_pos = nchar(sequence) - pos + 1
-          codon_pos <- nchar(sequence) - rev(codon_pos) + 1
-          pam_pos <- nchar(sequence) - rev(pam_pos) + 1
-          
-          # update the mutation positions
-          mutated <- nchar(sequence) - rev(mutated) + 1
-          codon_muts <- nchar(sequence) - rev(codon_muts) + 1
-          PAM_muts <- nchar(sequence) - rev(PAM_muts) + 1
-          sgRNA_muts <- nchar(sequence) - rev(sgRNA_muts) + 1
-          
-        }
-        
-        
-        # define the start and end of oligos for the purposes of correct output
-        if(input$oriented == "sense"){
-          
-          # define the start and end of oligo coordinates
-          oligoStart <- pam_pos[1] - 3 - input$leftArmLength
-          oligoEnd <- pam_pos[1] - 3 + input$rightArmLength - 1
-          
-        }else{
-          
-          # define the start and end of oligo coordinates
-          oligoStart <- pam_pos[3] + 3 - input$leftArmLength + 1
-          oligoEnd <- pam_pos[3] + 3 + input$rightArmLength 
-          
-        }
-        
-        # organize all mutated positions into a single vector
-        all_special_pos <- sort(unique(c(codon_pos, pam_pos,mutated)))
-        
-        # consider checking whether start and end of the oligo are less and more than any labeled positions
-        # in the sequence and then updating them accordingly
-        # Also check that neither of the coordinates is negative or beyond the sequence length,
-        # change them accordingly
-        
-        # add the strategy HTML if the program is at the beginning of the lapply loop
-        if(j == 1){
-          # initialize the output HTML
-          outputHTML <- HTML(paste(strategyHTML, "<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
-                              oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j),  "<br/>", sep = ""))          
-          
-        } else{
-          
-          # initialize the output HTML
-          outputHTML <- HTML(paste("<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
-                                   oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j),  "<br/>", sep = ""))          
-          
-        }
-        ############################################ formatOligo function ##############################################
-        
-        outputHTML <- paste(outputHTML,  formatOligo(sequence, oligoStart, oligoEnd, all_special_pos, codon_pos, pam_pos, mutated), sep="")
-        
-        ###########################################################################################
-        
-        # get all information on the relevant restriction enzyme site
-        if("enzymes" %in% names(outputList[[j]])){
-          
-          # iterate over all known enzymes for that sequence
-          for(enzymeData in outputList[[j]][["enzymes"]]){
+          # iterate over the list items
+          lapply(1:length(outputList), function(j) {
             
-            # store the restriction site information
-            enzyme <- enzymeData[["RE_enzyme"]]
-            site <- enzymeData[["RE_site"]]
-            site_coords <- enzymeData[["RE_site_coords"]]
-            site_oriented <- enzymeData[["RE_site_oriented"]]
+            # get sequence
+            sequence <- toupper(outputList[[j]][["site_assay"]])
             
-            # change the coordinates of the restriction site according to the oligo orientation
+            # collect all mutated positions
+            mutated <- c()
+            PAM_muts <- c()
+            sgRNA_muts <- c()
+            REsite_muts <- c()
+            
+            # get new replacement codon sequence
+            new_codon <- substr(sequence, codon_pos[1], codon_pos[3])
+            
+            # codon mutations
+            codon_muts <- outputList[[j]][["codon_diffs_coords"]]
+            
+            # get PAM mutations is they are available
+            if(outputList[[j]][["PAM_mutant_codon"]] != "none"){
+              
+              PAM_muts <- outputList[[j]][["PAM_mut_codon_diffs"]]
+              
+            }
+            
+            # get sgRNA mutations
+            if(outputList[[j]][["sgRNA_mutations"]]){
+              
+              sgRNA_muts <- outputList[[j]][["sgRNA_mut_codon_diffs"]] 
+              
+            }     
+            
+            # get the codon mutation that introduced a restriction site
+            if( "enzymes" %in% names(outputList[[j]])){
+              
+              # test if "RE_site_codon_diffs" in the relevant list
+              if("RE_site_codon_diffs" %in% names(outputList[[j]][["enzymes"]][[1]])){
+                REsite_muts <- outputList[[j]][["enzymes"]][[1]][["RE_site_codon_diffs"]]
+              }  
+            } 
+            
+            
+            # combine all mutations
+            mutated <- c(codon_muts, PAM_muts, sgRNA_muts, REsite_muts)
+            
+            # reverseComplement the sequence if the orientation is different
             if(input$orientedOligo == "anti"){
-              site_coords <- nchar(sequence) - rev(site_coords) + 1
+              
+              # update the sequence
+              sequence <- toString(reverseComplement(DNAString(sequence)))
+              
+              # update all position vectors 
+              # new_pos = nchar(sequence) - pos + 1
+              codon_pos <- nchar(sequence) - rev(codon_pos) + 1
+              pam_pos <- nchar(sequence) - rev(pam_pos) + 1
+              
+              # update the mutation positions
+              mutated <- nchar(sequence) - rev(mutated) + 1
+              codon_muts <- nchar(sequence) - rev(codon_muts) + 1
+              PAM_muts <- nchar(sequence) - rev(PAM_muts) + 1
+              sgRNA_muts <- nchar(sequence) - rev(sgRNA_muts) + 1
+              
             }
             
             
-            # add a second line for the restriction site
-            outputHTML <- paste(outputHTML, "<span style='opacity: 0;'>", substr(sequence, oligoStart, site_coords[1]-1), "</span>", 
-                                "<strong>",substr(sequence, site_coords[1], site_coords[2]), "</strong>", " - ", "<span style='color:blue'>",
-                                enzyme, "</span>", " (", "<span style=' font-weight: bold'>",  site,  "</span>", ") ",
-                                calculateFragments(RE_SITES, enzyme, enzymeData[["RE_site_coords"]], site_oriented, sequence),"<br/>", sep = "")            
-          }
-          
-          
-        }
-        
-        ############################################ AS-PCR primers output #############################################
-        
-        # steps for outputting tables of primers and their characteristics
-        
-        ## 1. collect variables for AS-PCR primer designs
-        forw_primer_pos <- coords[["forw_primer"]]
-        rev_primer_pos <- coords[["rev_primer"]]
-
-        
-        # forward primer
-        forw_primer <- toupper(str_trim(input$forw_primer))
-        
-        # reverse primer
-        rev_primer <- toupper(str_trim(input$rev_primer))
-        
-        # coordinates of the first and last target codon nucleotide change
-        firstCodonDifference <- min(codon_muts)
-        lastCodonDifference <- max(codon_muts)
-        
-        # wild-type and mutant sequences making sure that the coordinates refer to them
-        # "sequence" variable contains the mutant sequence
-        
-        # wild-type sequence
-        # define the wild-type site assay for checking non-cutters
-        wt_seq <- coords[["sequence"]]
-        
-        # subset the full sequence to that amplified by primers
-        wt_site_assay <- substr(wt_seq, forw_primer_pos[1], rev_primer_pos[2])
-        
-        ## 2. perform design of the AS-PCR primers
-        
-        # add full names of all primers to the output based on the gene, mutation, direction and detection target 
-        
-        # add a list of mutated nucleotides within a primer to highlight them later during the output stage
-
-        ################################################################################################################
-        
-        # run design functions
-        forward_primers <-  design_forward_primers(sequence, wt_site_assay, lastCodonDifference, rev_primer)
-        reverse_primers <-  design_reverse_primers(sequence, wt_site_assay, firstCodonDifference, forw_primer)
-        
-        primer_tables <- primerTablesOutput(forward_primers, reverse_primers)
-        
-        
-        # add the final tags
-        outputHTML <- paste(outputHTML, primer_tables, "</div>", sep = "")
-        
-        
-        HTML(outputHTML)
-        
-      }) # end of lapply - outputList
-      
-      # CASE 2: input$mutatePAM == "yes" & input$REsites == "no" 
-    } else if ( input$mutatePAM == "yes" & input$REsites == "no" ) {
-      
-      # the output for PAM/sgRNA only mutations
-      isolate({ PAMonlyList <- PAM_mutations() })
-      
-      # get back the position data to the original state before off-setting
-      codon_pos <- coords[["codon"]][1]: coords[["codon"]][2]
-      pam_pos <- coords[["PAM"]][1]: coords[["PAM"]][2]
-      
-      # iterate each oligo design
-      lapply(1:length(PAMonlyList), function(j) {
-        
-        # get sequence
-        sequence <- toupper(PAMonlyList[[j]][["site_assay"]])
-        
-        # collect all mutated positions
-        mutated <- c()
-        PAM_muts <- c()
-        sgRNA_muts <- c()
-
-        # get new replacement codon sequence
-        new_codon <- substr(sequence, codon_pos[1], codon_pos[3])
-        
-        # codon mutations
-        codon_muts <- PAMonlyList[[j]][["codon_diffs_coords"]]
-        
-        # get PAM mutations if they are available
-        if(PAMonlyList[[j]][["PAM_mutant_codon"]] != "none"){
-          
-          PAM_muts <- PAMonlyList[[j]][["PAM_mut_codon_diffs"]]
-          
-        }
-        
-        # get sgRNA mutations
-        if(PAMonlyList[[j]][["sgRNA_mutations"]]){
-          
-          sgRNA_muts <- PAMonlyList[[j]][["sgRNA_mut_codon_diffs"]] 
-          
-        }     
-        
-        # combine all mutations
-        mutated <- c(codon_muts, PAM_muts, sgRNA_muts)
-        
-        # reverseComplement the sequence if the orientation is different
-        if(input$orientedOligo == "anti"){
-          
-          # update the sequence
-          sequence <- toString(reverseComplement(DNAString(sequence)))
-          
-          # update all position vectors 
-          # new_pos = nchar(sequence) - pos + 1
-          codon_pos <- nchar(sequence) - rev(codon_pos) + 1
-          pam_pos <- nchar(sequence) - rev(pam_pos) + 1
-          
-          # update the mutation positions
-          mutated <- nchar(sequence) - rev(mutated) + 1
-          codon_muts <- nchar(sequence) - rev(codon_muts) + 1
-          PAM_muts <- nchar(sequence) - rev(PAM_muts) + 1
-          sgRNA_muts <- nchar(sequence) - rev(sgRNA_muts) + 1
-          
-        }
-        
-        # define the start and end of oligos for the purposes of correct output
-        if(input$oriented == "sense"){
-          
-          # define the start and end of oligo coordinates
-          oligoStart <- pam_pos[1] - 3 - input$leftArmLength
-          oligoEnd <- pam_pos[1] - 3 + input$rightArmLength - 1
-          
-        }else{
-          
-          # define the start and end of oligo coordinates
-          oligoStart <- pam_pos[3] + 3 - input$leftArmLength + 1
-          oligoEnd <- pam_pos[3] + 3 + input$rightArmLength 
-          
-        } 
-        
-        # organize all mutated positions into a single vector
-        all_special_pos <- sort(unique(c(codon_pos, pam_pos,mutated)))
-        
-        
-        # add the strategy HTML if the program is at the beginning of the lapply loop
-        if(j == 1){
-          # initialize the output HTML
-          outputHTML <- HTML(paste(strategyHTML, "<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
-                                   oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j), "<br/>", sep = ""))          
-          
-        } else{
-          
-          # initialize the output HTML
-          outputHTML <- HTML(paste("<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
-                                   oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j),  "<br/>", sep = ""))          
-          
-        }
-        
-        
-        ############################################ formatOligo function ##############################################
-        
-        outputHTML <- paste(outputHTML,  formatOligo(sequence, oligoStart, oligoEnd, all_special_pos, codon_pos, pam_pos, mutated), sep="")
-        
-        ###########################################################################################
-        
-        # get all information on the relevant restriction enzyme site
-        if("enzymes" %in% names(PAMonlyList[[j]])){
-          
-          # iterate over all known enzymes for that sequence
-          for(enzymeData in PAMonlyList[[j]][["enzymes"]]){
-            
-            # store the restriction site information
-            enzyme <- enzymeData[["RE_enzyme"]]
-            site <- enzymeData[["RE_site"]]
-            site_coords <- enzymeData[["RE_site_coords"]]
-            site_oriented <- enzymeData[["RE_site_oriented"]]
-            
-            
-            # change the coordinates of the restriction site according to the oligo orientation
-            if(input$orientedOligo == "anti"){
-              site_coords <- nchar(sequence) - rev(site_coords) + 1
+            # define the start and end of oligos for the purposes of correct output
+            if(input$oriented == "sense"){
+              
+              # define the start and end of oligo coordinates
+              oligoStart <- pam_pos[1] - 3 - input$leftArmLength
+              oligoEnd <- pam_pos[1] - 3 + input$rightArmLength - 1
+              
+            }else{
+              
+              # define the start and end of oligo coordinates
+              oligoStart <- pam_pos[3] + 3 - input$leftArmLength + 1
+              oligoEnd <- pam_pos[3] + 3 + input$rightArmLength 
+              
             }
-        
-            # offset all the positions
-              
-            # first, get the primers
-            forw_primer_pos <- coords[["forw_primer"]]
-            rev_primer_pos <- coords[["rev_primer"]]
             
-            offset <- forw_primer_pos[1] -1
+            # organize all mutated positions into a single vector
+            all_special_pos <- sort(unique(c(codon_pos, pam_pos,mutated)))
             
-            # update coordinates and sequence to avoid incorrect calculation
-            site_coords_offset <- enzymeData[["RE_site_coords"]] - offset
+            # consider checking whether start and end of the oligo are less and more than any labeled positions
+            # in the sequence and then updating them accordingly
+            # Also check that neither of the coordinates is negative or beyond the sequence length,
+            # change them accordingly
+            
+            # add the strategy HTML if the program is at the beginning of the lapply loop
+            if(j == 1){
+              # initialize the output HTML
+              outputHTML <- HTML(paste(strategyHTML, "<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
+                                       oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j),  "<br/>", sep = ""))          
               
+            } else{
+              
+              # initialize the output HTML
+              outputHTML <- HTML(paste("<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
+                                       oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j),  "<br/>", sep = ""))          
+              
+            }
+            ############################################ formatOligo function ##############################################
+            
+            outputHTML <- paste(outputHTML,  formatOligo(sequence, oligoStart, oligoEnd, all_special_pos, codon_pos, pam_pos, mutated), sep="")
+            
+            ###########################################################################################
+            
+            # get all information on the relevant restriction enzyme site
+            if("enzymes" %in% names(outputList[[j]])){
+              
+              # iterate over all known enzymes for that sequence
+              for(enzymeData in outputList[[j]][["enzymes"]]){
                 
-            # subset the full sequence to that amplified by primers
-            SA_digestion <- substr(sequence, forw_primer_pos[1], rev_primer_pos[2])
+                # store the restriction site information
+                enzyme <- enzymeData[["RE_enzyme"]]
+                site <- enzymeData[["RE_site"]]
+                site_coords <- enzymeData[["RE_site_coords"]]
+                site_oriented <- enzymeData[["RE_site_oriented"]]
+                
+                # change the coordinates of the restriction site according to the oligo orientation
+                if(input$orientedOligo == "anti"){
+                  site_coords <- nchar(sequence) - rev(site_coords) + 1
+                }
+                
+                
+                # add a second line for the restriction site
+                outputHTML <- paste(outputHTML, "<span style='opacity: 0;'>", substr(sequence, oligoStart, site_coords[1]-1), "</span>", 
+                                    "<strong>",substr(sequence, site_coords[1], site_coords[2]), "</strong>", " - ", "<span style='color:blue'>",
+                                    enzyme, "</span>", " (", "<span style=' font-weight: bold'>",  site,  "</span>", ") ",
+                                    calculateFragments(RE_SITES, enzyme, enzymeData[["RE_site_coords"]], site_oriented, sequence),"<br/>", sep = "")            
+              }
               
-            # add a second line for the restriction site
-            outputHTML <- paste(outputHTML, "<span style='opacity: 0;'>", substr(sequence, oligoStart, site_coords[1]-1), "</span>", 
-                                "<strong>",substr(sequence, site_coords[1], site_coords[2]), "</strong>", " - ", "<span style='color:blue'>",
-                                enzyme, "</span>", " (", "<span style=' font-weight: bold'>",  site,  "</span>", ") ",
-                                calculateFragments(RE_SITES, enzyme, site_coords_offset, site_oriented, SA_digestion),"<br/>", sep = "")
-            
-          }
-          
-          
-        } # end of if statement for enzymes
-        
-        ############################################ AS-PCR primers output #############################################
-        
-        # steps for outputting tables of primers and their characteristics
-        
-        ## 1. collect variables for AS-PCR primer designs
-        forw_primer_pos <- coords[["forw_primer"]]
-        rev_primer_pos <- coords[["rev_primer"]]
-        
-        
-        # forward primer
-        forw_primer <- toupper(str_trim(input$forw_primer))
-        
-        # reverse primer
-        rev_primer <- toupper(str_trim(input$rev_primer))
-        
-        # coordinates of the first and last target codon nucleotide change
-        offset <- forw_primer_pos[1] - 1
-        
-        firstCodonDifference <- min(codon_muts) - offset
-        lastCodonDifference <- max(codon_muts) - offset
-        
-        # wild-type and mutant sequences making sure that the coordinates refer to them
-        # "sequence" variable contains the mutant sequence
-        
-        # wild-type sequence
-        # define the wild-type site assay for checking non-cutters
-        wt_seq <- coords[["sequence"]]
-        
-        # subset the full sequence to that amplified by primers
-        wt_site_assay <- substr(wt_seq, forw_primer_pos[1], rev_primer_pos[2])
-        
-        ## 2. perform design of the AS-PCR primers
-        
-        # add full names of all primers to the output based on the gene, mutation, direction and detection target 
-        
-        # add a list of mutated nucleotides within a primer to highlight them later during the output stage
-        
-        ################################################################################################################
-        
-        # run design functions
-        forward_primers <-  design_forward_primers(sequence, wt_site_assay, lastCodonDifference, rev_primer)
-        reverse_primers <-  design_reverse_primers(sequence, wt_site_assay, firstCodonDifference, forw_primer)
-        
-        
-        primer_tables <- primerTablesOutput(forward_primers, reverse_primers)
-        
-        # add the final tags
-        outputHTML <- paste(outputHTML, primer_tables, "</div>", sep = "")
-        
-        
-        HTML(outputHTML)
-        
-      }) # end of lapply - PAMonlyList
-      
-      
-    } else if ( input$mutatePAM == "no" & input$REsites == "yes" ) {
-      # CASE 3: input$mutatePAM == "no" & input$REsites == "yes"
-      
-      # list of silent REsite mutations designs
-      isolate({ noPAM_REsitesList <- noPAMmuts_REsiteSilentMuts() })
-      
-      # iterate over the list items
-      lapply(1:length(noPAM_REsitesList), function(j) {
-        
-        # get sequence
-        sequence <- toupper(noPAM_REsitesList[[j]][["site_assay"]])
-        
-        # collect all mutated positions
-        mutated <- c()
-        REsite_muts <- c()
-        
-        # get new replacement codon sequence
-        new_codon <- substr(sequence, codon_pos[1], codon_pos[3])
-        
-        # codon mutations
-        codon_muts <- noPAM_REsitesList[[j]][["codon_diffs_coords"]]
-        
-        # get the codon mutation that introduced a restriction site
-        if( "enzymes" %in% names(noPAM_REsitesList[[j]])){
-          
-          # test if "RE_site_codon_diffs" in the relevant list
-          if("RE_site_codon_diffs" %in% names(noPAM_REsitesList[[j]][["enzymes"]][[1]])){
-            REsite_muts <- noPAM_REsitesList[[j]][["enzymes"]][[1]][["RE_site_codon_diffs"]]
-          }  
-        } 
-        
-        
-        # combine all mutations
-        mutated <- c(codon_muts, REsite_muts)
-        
-        # reverseComplement the sequence if the orientation is different
-        if(input$orientedOligo == "anti"){
-          
-          # update the sequence
-          sequence <- toString(reverseComplement(DNAString(sequence)))
-          
-          # update all position vectors 
-          # new_pos = nchar(sequence) - pos + 1
-          codon_pos <- nchar(sequence) - rev(codon_pos) + 1
-          pam_pos <- nchar(sequence) - rev(pam_pos) + 1
-          
-          # update the mutation positions
-          mutated <- nchar(sequence) - rev(mutated) + 1
-          codon_muts <- nchar(sequence) - rev(codon_muts) + 1
-          
-        }
-        
-        
-        # define the start and end of oligos for the purposes of correct output
-        if(input$oriented == "sense"){
-          
-          # define the start and end of oligo coordinates
-          oligoStart <- pam_pos[1] - 3 - input$leftArmLength
-          oligoEnd <- pam_pos[1] - 3 + input$rightArmLength - 1
-          
-        }else{
-          
-          # define the start and end of oligo coordinates
-          oligoStart <- pam_pos[3] + 3 - input$leftArmLength + 1
-          oligoEnd <- pam_pos[3] + 3 + input$rightArmLength 
-          
-        }
-        
-        # organize all mutated positions into a single vector
-        all_special_pos <- sort(unique(c(codon_pos, pam_pos,mutated)))
-        
-        # consider checking whether start and end of the oligo are less and more than any labeled positions
-        # in the sequence and then updating them accordingly
-        # Also check that neither of the coordinates is negative or beyond the sequence length,
-        # change them accordingly
-        
-        
-        # add the strategy HTML if the program is at the beginning of the lapply loop
-        if(j == 1){
-          # initialize the output HTML
-          outputHTML <- HTML(paste(strategyHTML, "<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
-                                   oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j),  "<br/>", sep = ""))          
-          
-        } else{
-          
-          # initialize the output HTML
-          outputHTML <- HTML(paste("<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
-                                   oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j),  "<br/>", sep = ""))          
-          
-        }
-        
-        
-        ############################################ formatOligo function ##############################################
-        
-        outputHTML <- paste(outputHTML,  formatOligo(sequence, oligoStart, oligoEnd, all_special_pos, codon_pos, pam_pos, mutated), sep="")
-        
-        ###########################################################################################
-        
-        # get all information on the relevant restriction enzyme sites
-        if("enzymes" %in% names(noPAM_REsitesList[[j]])){
-          
-          # iterate over all known enzymes for that sequence
-          for(enzymeData in noPAM_REsitesList[[j]][["enzymes"]]){
-            
-            # store the restriction site information
-            enzyme <- enzymeData[["RE_enzyme"]]
-            site <- enzymeData[["RE_site"]]
-            site_coords <- enzymeData[["RE_site_coords"]]
-            site_oriented <- enzymeData[["RE_site_oriented"]]
-            
-            # change the coordinates of the restriction site according to the oligo orientation
-            if(input$orientedOligo == "anti"){
-              site_coords <- nchar(sequence) - rev(site_coords) + 1
+              
             }
             
-            # add a second line for the restriction site
-            outputHTML <- paste(outputHTML, "<span style='opacity: 0;'>", substr(sequence, oligoStart, site_coords[1]-1), "</span>", 
-                                "<strong>",substr(sequence, site_coords[1], site_coords[2]), "</strong>", " - ", "<span style='color:blue'>",
-                                enzyme, "</span>", " (", "<span style=' font-weight: bold'>",  site,  "</span>", ") ",
-                                calculateFragments(RE_SITES, enzyme, enzymeData[["RE_site_coords"]], site_oriented, sequence), "<br/>", sep = "")
+            ############################################ AS-PCR primers output #############################################
             
-          }
-          
-        }
-        
-        ############################################ AS-PCR primers output #############################################
-        
-        # steps for outputting tables of primers and their characteristics
-        
-        ## 1. collect variables for AS-PCR primer designs
-        forw_primer_pos <- coords[["forw_primer"]]
-        rev_primer_pos <- coords[["rev_primer"]]
-        
-        
-        # forward primer
-        forw_primer <- toupper(str_trim(input$forw_primer))
-        
-        # reverse primer
-        rev_primer <- toupper(str_trim(input$rev_primer))
-        
-        # coordinates of the first and last target codon nucleotide change
-        offset <- forw_primer_pos[1] - 1
-        
-        firstCodonDifference <- min(codon_muts)
-        lastCodonDifference <- max(codon_muts)
-        
-        # wild-type and mutant sequences making sure that the coordinates refer to them
-        # "sequence" variable contains the mutant sequence
-        
-        # wild-type sequence
-        # define the wild-type site assay for checking non-cutters
-        wt_seq <- coords[["sequence"]]
-        
-        # subset the full sequence to that amplified by primers
-        wt_site_assay <- substr(wt_seq, forw_primer_pos[1], rev_primer_pos[2])
-        
-        ## 2. perform design of the AS-PCR primers
-        
-        # add full names of all primers to the output based on the gene, mutation, direction and detection target 
-        
-        # add a list of mutated nucleotides within a primer to highlight them later during the output stage
-        
-        ################################################################################################################
-        
-        # run design functions
-        forward_primers <-  design_forward_primers(sequence, wt_site_assay, lastCodonDifference, rev_primer)
-        reverse_primers <-  design_reverse_primers(sequence, wt_site_assay, firstCodonDifference, forw_primer)
-        
-        
-        primer_tables <- primerTablesOutput(forward_primers, reverse_primers)
-        
-        # add the final tags
-        outputHTML <- paste(outputHTML, primer_tables, "</div>", sep = "")
-        
-        
-        HTML(outputHTML)
-        
-      }) # end of lapply - noPAM_REsitesList
-      
-    } else { # CASE 4: input$mutatePAM == "no" & input$REsites == "no"
-      
-      # codon mutations list
-      isolate({ CodonMutsList <- codonMutations() })
-      
-      # get back the position data to the original state before off-setting
-      codon_pos <- coords[["codon"]][1]: coords[["codon"]][2]
-      pam_pos <- coords[["PAM"]][1]: coords[["PAM"]][2]
-      
-      # iterate over each codon mutation
-      lapply(1:length(CodonMutsList), function(j){
-        
-        # get sequence
-        sequence <- toupper(CodonMutsList[[j]][["site_assay"]])
-        
-        # collect all mutated positions
-        mutated <- c()
-        
-        # codon mutations are the only ones in this case
-        mutated <- CodonMutsList[[j]][["codon_diffs_coords"]]
-        
-        # get new replacement codon sequence
-        new_codon <- substr(sequence, codon_pos[1], codon_pos[3])
-        
-        # reverseComplement the sequence if the orientation is different
-        if(input$orientedOligo == "anti"){
-          
-          # update the sequence
-          sequence <- toString(reverseComplement(DNAString(sequence)))
-          
-          # update all position vectors 
-          # new_pos = nchar(sequence) - pos + 1
-          codon_pos <- nchar(sequence) - rev(codon_pos) + 1
-          pam_pos <- nchar(sequence) - rev(pam_pos) + 1
-          
-          # update the mutation positions
-          mutated <- nchar(sequence) - rev(mutated) + 1
-          
-        }
-        
-        # define the start and end of oligos for the purposes of correct output
-        if(input$oriented == "sense"){
-          
-          # define the start and end of oligo coordinates
-          oligoStart <- pam_pos[1] - 3 - input$leftArmLength
-          oligoEnd <- pam_pos[1] - 3 + input$rightArmLength - 1
-          
-        }else{
-          
-          # define the start and end of oligo coordinates
-          oligoStart <- pam_pos[3] + 3 - input$leftArmLength + 1
-          oligoEnd <- pam_pos[3] + 3 + input$rightArmLength 
-          
-        } 
-        
-        # organize all mutated positions into a single vector
-        all_special_pos <- sort(unique(c(codon_pos, pam_pos,mutated)))
-        
-        
-        # add the strategy HTML if the program is at the beginning of the lapply loop
-        if(j == 1){
-          # initialize the output HTML
-          outputHTML <- HTML(paste(strategyHTML, "<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
-                                   oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j),  "<br/>", sep = ""))          
-          
-        } else{
-          
-          # initialize the output HTML
-          outputHTML <- HTML(paste("<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
-                                   oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j),  "<br/>", sep = ""))          
-          
-        }
-        
-        
-        ############################################ formatOligo function ##############################################
-        
-        outputHTML <- paste(outputHTML,  formatOligo(sequence, oligoStart, oligoEnd, all_special_pos, codon_pos, pam_pos, mutated), sep="")
-        
-        ###########################################################################################
-        
-        # add the final tags
-        outputHTML <- paste(outputHTML, "<br/>", sep = "")
-        
-        # get all information on the relevant restriction enzyme sites
-        if("enzymes" %in% names(CodonMutsList[[j]])){
-          
-          # iterate over all known enzymes for that sequence
-          for(enzymeData in CodonMutsList[[j]][["enzymes"]]){
+            # steps for outputting tables of primers and their characteristics
             
-            # store the restriction site information
-            enzyme <- enzymeData[["RE_enzyme"]]
-            site <- enzymeData[["RE_site"]]
-            site_coords <- enzymeData[["RE_site_coords"]]
-            site_oriented <- enzymeData[["RE_site_oriented"]]
+            # forward primer
+            forw_primer <- toupper(str_trim(input$forw_primer))
             
-            # change the coordinates of the restriction site according to the oligo orientation
-            if(input$orientedOligo == "anti"){
-              site_coords <- nchar(sequence) - rev(site_coords) + 1
-            }
+            # reverse primer
+            rev_primer <- toupper(str_trim(input$rev_primer))
             
-            # offset all the positions
+            # coordinates of the first and last target codon nucleotide change
+            firstCodonDifference <- min(outputList[[j]][["codon_diffs_coords"]])
+            lastCodonDifference <- max(outputList[[j]][["codon_diffs_coords"]])
             
-            # first, get the primers
-            forw_primer_pos <- coords[["forw_primer"]]
-            rev_primer_pos <- coords[["rev_primer"]]
+            # wild-type and mutant sequences making sure that the coordinates refer to them
+            # "sequence" variable contains the mutant sequence
             
-            offset <- forw_primer_pos[1] -1
-            
-            # update coordinates and sequence to avoid incorrect calculation
-            site_coords_offset <- enzymeData[["RE_site_coords"]] - offset
-            
+            # wild-type sequence
+            # define the wild-type site assay for checking non-cutters
+            wt_seq <- coords[["sequence"]]
             
             # subset the full sequence to that amplified by primers
-            SA_digestion <- substr(sequence, forw_primer_pos[1], rev_primer_pos[2])
+            wt_site_assay <- substr(wt_seq, forw_primer_pos[1], rev_primer_pos[2])
+            mut_site_assay <- toupper(outputList[[j]][["site_assay"]])
             
-            # add a second line for the restriction site
-            outputHTML <- paste(outputHTML, "<span style='opacity: 0;'>", substr(sequence, oligoStart, site_coords[1]-1), "</span>", 
-                                "<strong>",substr(sequence, site_coords[1], site_coords[2]), "</strong>", " - ", "<span style='color:blue'>",
-                                enzyme, "</span>", " (", "<span style=' font-weight: bold'>",  site,  "</span>", ") ",
-                                calculateFragments(RE_SITES, enzyme, site_coords_offset, site_oriented, SA_digestion),"<br/>", sep = "")
+            ## 2. perform design of the AS-PCR primers
             
-          }
-          
-        }
-        
-        ############################################ AS-PCR primers output #############################################
-        
-        # steps for outputting tables of primers and their characteristics
-        
-        ## 1. collect variables for AS-PCR primer designs
-        forw_primer_pos <- coords[["forw_primer"]]
-        rev_primer_pos <- coords[["rev_primer"]]
-        
-        
-        # forward primer
-        forw_primer <- toupper(str_trim(input$forw_primer))
-        
-        # reverse primer
-        rev_primer <- toupper(str_trim(input$rev_primer))
-        
-        # coordinates of the first and last target codon nucleotide change
-        offset <- forw_primer_pos[1] - 1
-        
-        firstCodonDifference <- min(mutated) - offset
-        lastCodonDifference <- max(mutated) - offset
-        
-        # wild-type and mutant sequences making sure that the coordinates refer to them
-        # "sequence" variable contains the mutant sequence
-        
-        # wild-type sequence
-        # define the wild-type site assay for checking non-cutters
-        wt_seq <- coords[["sequence"]]
-        
-        # subset the full sequence to that amplified by primers
-        wt_site_assay <- substr(wt_seq, forw_primer_pos[1], rev_primer_pos[2])
-        
-        ## 2. perform design of the AS-PCR primers
-        
-        # add full names of all primers to the output based on the gene, mutation, direction and detection target 
-        
-        # add a list of mutated nucleotides within a primer to highlight them later during the output stage
-        
-        ################################################################################################################
-        
-        # run design functions
-        forward_primers <-  design_forward_primers(sequence, wt_site_assay, lastCodonDifference, rev_primer)
-        reverse_primers <-  design_reverse_primers(sequence, wt_site_assay, firstCodonDifference, forw_primer)
-        
-        
-        primer_tables <- primerTablesOutput(forward_primers, reverse_primers)
-        
-        # add the final tags
-        outputHTML <- paste(outputHTML, primer_tables, "</div>", sep = "")
-        
-        HTML(outputHTML)
-        
-      }) # end of lapply loop
-      
-    } # end of if-else statement series
-    
-  } else{ # Cas12a PAMs
-    
-    # PAM/sgRNA mutations are not done, but sites are introduced
-    # input$mutatePAM is not relevant so we do not test it
-    
-    if ( input$REsites == "yes" ) {
-      # CASE 3: input$mutatePAM == "no" & input$REsites == "yes"
-      
-      # list of silent REsite mutations designs
-      isolate({ noPAM_REsitesList <- noPAMmuts_REsiteSilentMuts() })
-      
-      # iterate over the list items
-      lapply(1:length(noPAM_REsitesList), function(j) {
-        
-        # get sequence
-        sequence <- toupper(noPAM_REsitesList[[j]][["site_assay"]])
-        
-        # collect all mutated positions
-        mutated <- c()
-        REsite_muts <- c()
-        
-        # codon mutations
-        codon_muts <- noPAM_REsitesList[[j]][["codon_diffs_coords"]]
-        
-        # get new replacement codon sequence
-        new_codon <- substr(sequence, codon_pos[1], codon_pos[3])
-        
-        # get the codon mutation that introduced a restriction site
-        if( "enzymes" %in% names(noPAM_REsitesList[[j]])){
-          
-          # test if "RE_site_codon_diffs" in the relevant list
-          if("RE_site_codon_diffs" %in% names(noPAM_REsitesList[[j]][["enzymes"]][[1]])){
-            REsite_muts <- noPAM_REsitesList[[j]][["enzymes"]][[1]][["RE_site_codon_diffs"]]
-          }  
-        } 
-        
-        
-        # combine all mutations
-        mutated <- c(codon_muts, REsite_muts)
-        
-        # reverseComplement the sequence if the orientation is different
-        if(input$orientedOligo == "anti"){
-          
-          # update the sequence
-          sequence <- toString(reverseComplement(DNAString(sequence)))
-          
-          # update all position vectors 
-          # new_pos = nchar(sequence) - pos + 1
-          codon_pos <- nchar(sequence) - rev(codon_pos) + 1
-          pam_pos <- nchar(sequence) - rev(pam_pos) + 1
-          
-          # update the mutation positions
-          mutated <- nchar(sequence) - rev(mutated) + 1
-          codon_muts <- nchar(sequence) - rev(codon_muts) + 1
-          
-        }
-        
-       # define the start and end of oligo coordinates
-       # for Cas12a enzymes
-      
-        if(input$orientedOligo == "sense"){
-          oligoStart <- pam_pos[1] - 18 - input$leftArmLength + 1
-          oligoEnd <- pam_pos[1] - 18 + input$rightArmLength
-          
-        } else{
-          
-          oligoStart <- pam_pos[length(pam_pos)] + 18 - input$leftArmLength
-          oligoEnd <- pam_pos[length(pam_pos)] + 18 + input$rightArmLength - 1
-        } 
-        
-          
-       # organize all mutated positions into a single vector
-       all_special_pos <- sort(unique(c(codon_pos, pam_pos,mutated)))
-        
-        # consider checking whether start and end of the oligo are less and more than any labeled positions
-        # in the sequence and then updating them accordingly
-        # Also check that neither of the coordinates is negative or beyond the sequence length,
-        # change them accordingly
-        
-        
-        # add the strategy HTML if the program is at the beginning of the lapply loop
-        if(j == 1){
-          # initialize the output HTML
-          outputHTML <- HTML(paste(strategyHTML, "<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
-                                   oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j),  "<br/>", sep = ""))          
-          
-        } else{
-          
-          # initialize the output HTML
-          outputHTML <- HTML(paste("<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
-                                   oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j),  "<br/>", sep = ""))          
-          
-        }
-        
-        
-       ############################################ formatOligo function ##############################################
-       
-       outputHTML <- paste(outputHTML,  formatOligo(sequence, oligoStart, oligoEnd, all_special_pos, codon_pos, pam_pos, mutated), sep="")
-       
-       ###########################################################################################
-       
-        # get all information on the relevant restriction enzyme sites
-        
-        if("enzymes" %in% names(noPAM_REsitesList[[j]])){
-          
-          # iterate over all known enzymes for that sequence
-          for(enzymeData in noPAM_REsitesList[[j]][["enzymes"]]){
+            # add full names of all primers to the output based on the gene, mutation, direction and detection target 
             
-            # store the restriction site information
-            enzyme <- enzymeData[["RE_enzyme"]]
-            site <- enzymeData[["RE_site"]]
-            site_coords <- enzymeData[["RE_site_coords"]]
-            site_oriented <- enzymeData[["RE_site_oriented"]]
+            # add a list of mutated nucleotides within a primer to highlight them later during the output stage
             
-            # change the coordinates of the restriction site according to the oligo orientation
+            ################################################################################################################
+            
+            # run design functions
+            forward_primers <-  design_forward_primers(mut_site_assay, wt_site_assay, lastCodonDifference, rev_primer)
+            reverse_primers <-  design_reverse_primers(mut_site_assay, wt_site_assay, firstCodonDifference, forw_primer)
+            
+            primer_tables <- primerTablesOutput(forward_primers, reverse_primers, input$gene, input$Mutation)
+            
+            
+            # add the final tags
+            outputHTML <- paste(outputHTML, primer_tables, "</div>", sep = "")
+            
+            
+            HTML(outputHTML)
+            
+          }) # end of lapply - outputList
+          
+          # CASE 2: input$mutatePAM == "yes" & input$REsites == "no" 
+        } else if ( input$mutatePAM == "yes" & input$REsites == "no" ) {
+          
+          # the output for PAM/sgRNA only mutations
+          isolate({ PAMonlyList <- PAM_mutations() })
+          
+          # get back the position data to the original state before off-setting
+          codon_pos <- coords[["codon"]][1]: coords[["codon"]][2]
+          pam_pos <- coords[["PAM"]][1]: coords[["PAM"]][2]
+          
+          # first, get the primers and define the offset
+          forw_primer_pos <- coords[["forw_primer"]]
+          rev_primer_pos <- coords[["rev_primer"]]
+          offset <- forw_primer_pos[1] -1
+          
+          # iterate each oligo design
+          lapply(1:length(PAMonlyList), function(j) {
+            
+            # get sequence
+            sequence <- toupper(PAMonlyList[[j]][["site_assay"]])
+            
+            # collect all mutated positions
+            mutated <- c()
+            PAM_muts <- c()
+            sgRNA_muts <- c()
+            
+            # get new replacement codon sequence
+            new_codon <- substr(sequence, codon_pos[1], codon_pos[3])
+            
+            # codon mutations
+            codon_muts <- PAMonlyList[[j]][["codon_diffs_coords"]]
+            
+            # get PAM mutations if they are available
+            if(PAMonlyList[[j]][["PAM_mutant_codon"]] != "none"){
+              
+              PAM_muts <- PAMonlyList[[j]][["PAM_mut_codon_diffs"]]
+              
+            }
+            
+            # get sgRNA mutations
+            if(PAMonlyList[[j]][["sgRNA_mutations"]]){
+              
+              sgRNA_muts <- PAMonlyList[[j]][["sgRNA_mut_codon_diffs"]] 
+              
+            }     
+            
+            # combine all mutations
+            mutated <- c(codon_muts, PAM_muts, sgRNA_muts)
+            
+            # reverseComplement the sequence if the orientation is different
             if(input$orientedOligo == "anti"){
-              site_coords <- nchar(sequence) - rev(site_coords) + 1
+              
+              # update the sequence
+              sequence <- toString(reverseComplement(DNAString(sequence)))
+              
+              # update all position vectors 
+              # new_pos = nchar(sequence) - pos + 1
+              codon_pos <- nchar(sequence) - rev(codon_pos) + 1
+              pam_pos <- nchar(sequence) - rev(pam_pos) + 1
+              
+              # update the mutation positions
+              mutated <- nchar(sequence) - rev(mutated) + 1
+              codon_muts <- nchar(sequence) - rev(codon_muts) + 1
+              PAM_muts <- nchar(sequence) - rev(PAM_muts) + 1
+              sgRNA_muts <- nchar(sequence) - rev(sgRNA_muts) + 1
+              
+            }
+            
+            # define the start and end of oligos for the purposes of correct output
+            if(input$oriented == "sense"){
+              
+              # define the start and end of oligo coordinates
+              oligoStart <- pam_pos[1] - 3 - input$leftArmLength
+              oligoEnd <- pam_pos[1] - 3 + input$rightArmLength - 1
+              
+            }else{
+              
+              # define the start and end of oligo coordinates
+              oligoStart <- pam_pos[3] + 3 - input$leftArmLength + 1
+              oligoEnd <- pam_pos[3] + 3 + input$rightArmLength 
+              
+            } 
+            
+            # organize all mutated positions into a single vector
+            all_special_pos <- sort(unique(c(codon_pos, pam_pos,mutated)))
+            
+            
+            # add the strategy HTML if the program is at the beginning of the lapply loop
+            if(j == 1){
+              # initialize the output HTML
+              outputHTML <- HTML(paste(strategyHTML, "<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
+                                       oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j), "<br/>", sep = ""))          
+              
+            } else{
+              
+              # initialize the output HTML
+              outputHTML <- HTML(paste("<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
+                                       oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j),  "<br/>", sep = ""))          
+              
             }
             
             
-            # add a second line for the restriction site
-            outputHTML <- paste(outputHTML, "<span style='opacity: 0;'>", substr(sequence, oligoStart, site_coords[1]-1), "</span>", 
-                                "<strong>",substr(sequence, site_coords[1], site_coords[2]), "</strong>", " - ", "<span style='color:blue'>",
-                                enzyme, "</span>", " (", "<span style=' font-weight: bold'>",  site,  "</span>", ") ",
-                                calculateFragments(RE_SITES, enzyme, enzymeData[["RE_site_coords"]], site_oriented, sequence),
-                                "<br/>", sep = "")
+            ############################################ formatOligo function ##############################################
             
-          }
-          
-        }
-        
-       ############################################ AS-PCR primers output #############################################
-       
-       # steps for outputting tables of primers and their characteristics
-       
-       ## 1. collect variables for AS-PCR primer designs
-       forw_primer_pos <- coords[["forw_primer"]]
-       rev_primer_pos <- coords[["rev_primer"]]
-       
-       
-       # forward primer
-       forw_primer <- toupper(str_trim(input$forw_primer))
-       
-       # reverse primer
-       rev_primer <- toupper(str_trim(input$rev_primer))
-       
-       # coordinates of the first and last target codon nucleotide change
-       offset <- forw_primer_pos[1] - 1
-       
-       firstCodonDifference <- min(codon_muts)
-       lastCodonDifference <- max(codon_muts)
-       
-       # wild-type and mutant sequences making sure that the coordinates refer to them
-       # "sequence" variable contains the mutant sequence
-       
-       # wild-type sequence
-       # define the wild-type site assay for checking non-cutters
-       wt_seq <- coords[["sequence"]]
-       
-       # subset the full sequence to that amplified by primers
-       wt_site_assay <- substr(wt_seq, forw_primer_pos[1], rev_primer_pos[2])
-       
-       ## 2. perform design of the AS-PCR primers
-       
-       # add full names of all primers to the output based on the gene, mutation, direction and detection target 
-       
-       # add a list of mutated nucleotides within a primer to highlight them later during the output stage
-       
-       ################################################################################################################
-       
-       # run design functions
-       forward_primers <-  design_forward_primers(sequence, wt_site_assay, lastCodonDifference, rev_primer)
-       reverse_primers <-  design_reverse_primers(sequence, wt_site_assay, firstCodonDifference, forw_primer)
-       
-       
-       primer_tables <- primerTablesOutput(forward_primers, reverse_primers)
-       
-       # add the final tags
-       outputHTML <- paste(outputHTML, primer_tables, "</div>", sep = "")        
-        
-       HTML(outputHTML)
-        
-      }) # end of lapply - noPAM_REsitesList
-      
-    } else { # CASE 4: input$REsites == "no"
-      
-      # codon mutations list
-      isolate({ CodonMutsList <- codonMutations() })
-      
-      # get back the position data to the original state before off-setting
-      codon_pos <- coords[["codon"]][1]: coords[["codon"]][2]
-      pam_pos <- coords[["PAM"]][1]: coords[["PAM"]][2]
-      
-      # iterate over each codon mutation
-      lapply(1:length(CodonMutsList), function(j){
-        
-        # get sequence
-        sequence <- toupper(CodonMutsList[[j]][["site_assay"]])
-        
-        # collect all mutated positions
-        mutated <- c()
-        
-        # codon mutations are the only ones in this case
-        mutated <- CodonMutsList[[j]][["codon_diffs_coords"]]
-        
-        # get new replacement codon sequence
-        new_codon <- substr(sequence, codon_pos[1], codon_pos[3])
-        
-        # reverseComplement the sequence if the orientation is different
-        if(input$orientedOligo == "anti"){
-          
-          # update the sequence
-          sequence <- toString(reverseComplement(DNAString(sequence)))
-          
-          # update all position vectors 
-          # new_pos = nchar(sequence) - pos + 1
-          codon_pos <- nchar(sequence) - rev(codon_pos) + 1
-          pam_pos <- nchar(sequence) - rev(pam_pos) + 1
-          
-          # update the mutation positions
-          mutated <- nchar(sequence) - rev(mutated) + 1
-          
-        }
-        
-        # define the start and end of oligos for the purposes of correct output
-        # for Cas12a enzymes
-        if(input$orientedOligo == "sense"){
-          oligoStart <- pam_pos[1] - 18 - input$leftArmLength + 1
-          oligoEnd <- pam_pos[1] - 18 + input$rightArmLength
-          
-        } else{
-          
-          oligoStart <- pam_pos[length(pam_pos)] + 18 - input$leftArmLength
-          oligoEnd <- pam_pos[length(pam_pos)] + 18 + input$rightArmLength - 1
-          
-        } 
-        
-        
-        # organize all mutated positions into a single vector
-        all_special_pos <- sort(unique(c(codon_pos, pam_pos,mutated)))
-        
-        
-        # add the strategy HTML if the program is at the beginning of the lapply loop
-        if(j == 1){
-          # initialize the output HTML
-          outputHTML <- HTML(paste(strategyHTML, "<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
-                                   oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j),  "<br/>", sep = ""))          
-          
-        } else{
-          
-          # initialize the output HTML
-          outputHTML <- HTML(paste("<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
-                                   oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j),  "<br/>", sep = ""))          
-          
-        }
-        
-        
-        ############################################ formatOligo function ##############################################
-        
-        outputHTML <- paste(outputHTML,  formatOligo(sequence, oligoStart, oligoEnd, all_special_pos, codon_pos, pam_pos, mutated), sep="")
-        
-        ###########################################################################################
-        
-        # get all information on the relevant restriction enzyme sites
-        if("enzymes" %in% names(CodonMutsList[[j]])){
-          
-          # iterate over all known enzymes for that sequence
-          for(enzymeData in CodonMutsList[[j]][["enzymes"]]){
+            outputHTML <- paste(outputHTML,  formatOligo(sequence, oligoStart, oligoEnd, all_special_pos, codon_pos, pam_pos, mutated), sep="")
             
-            # store the restriction site information
-            enzyme <- enzymeData[["RE_enzyme"]]
-            site <- enzymeData[["RE_site"]]
-            site_coords <- enzymeData[["RE_site_coords"]]
-            site_oriented <- enzymeData[["RE_site_oriented"]]
+            ###########################################################################################
             
-            # change the coordinates of the restriction site according to the oligo orientation
-            if(input$orientedOligo == "anti"){
-              site_coords <- nchar(sequence) - rev(site_coords) + 1
-            }
+            # get all information on the relevant restriction enzyme site
+            if("enzymes" %in% names(PAMonlyList[[j]])){
+              
+              # iterate over all known enzymes for that sequence
+              for(enzymeData in PAMonlyList[[j]][["enzymes"]]){
+                
+                # store the restriction site information
+                enzyme <- enzymeData[["RE_enzyme"]]
+                site <- enzymeData[["RE_site"]]
+                site_coords <- enzymeData[["RE_site_coords"]]
+                site_oriented <- enzymeData[["RE_site_oriented"]]
+                
+                
+                # change the coordinates of the restriction site according to the oligo orientation
+                if(input$orientedOligo == "anti"){
+                  site_coords <- nchar(sequence) - rev(site_coords) + 1
+                }
+                
+                # offset all the positions
+                
+                # update coordinates and sequence to avoid incorrect calculation
+                site_coords_offset <- enzymeData[["RE_site_coords"]] - offset
+                
+                
+                # subset the full sequence to that amplified by primers
+                SA_digestion <- substr(sequence, forw_primer_pos[1], rev_primer_pos[2])
+                
+                # add a second line for the restriction site
+                outputHTML <- paste(outputHTML, "<span style='opacity: 0;'>", substr(sequence, oligoStart, site_coords[1]-1), "</span>", 
+                                    "<strong>",substr(sequence, site_coords[1], site_coords[2]), "</strong>", " - ", "<span style='color:blue'>",
+                                    enzyme, "</span>", " (", "<span style=' font-weight: bold'>",  site,  "</span>", ") ",
+                                    calculateFragments(RE_SITES, enzyme, site_coords_offset, site_oriented, SA_digestion),"<br/>", sep = "")
+                
+              }
+              
+              
+            } # end of if statement for enzymes
             
-            # offset all the positions
+            ############################################ AS-PCR primers output #############################################
             
-            # first, get the primers
-            forw_primer_pos <- coords[["forw_primer"]]
-            rev_primer_pos <- coords[["rev_primer"]]
+            # steps for outputting tables of primers and their characteristics
             
-            offset <- forw_primer_pos[1] -1
+            # forward primer
+            forw_primer <- toupper(str_trim(input$forw_primer))
             
-            # update coordinates and sequence to avoid incorrect calculation
-            site_coords_offset <- enzymeData[["RE_site_coords"]] - offset
+            # reverse primer
+            rev_primer <- toupper(str_trim(input$rev_primer))
             
+            
+            firstCodonDifference <- min(PAMonlyList[[j]][["codon_diffs_coords"]]) - offset
+            lastCodonDifference <- max(PAMonlyList[[j]][["codon_diffs_coords"]]) - offset
+            
+            # wild-type and mutant sequences making sure that the coordinates refer to them
+            # "sequence" variable contains the mutant sequence
+            
+            # wild-type sequence
+            # define the wild-type site assay for checking non-cutters
+            wt_seq <- coords[["sequence"]]
             
             # subset the full sequence to that amplified by primers
-            SA_digestion <- substr(sequence, forw_primer_pos[1], rev_primer_pos[2])
+            wt_site_assay <- substr(wt_seq, forw_primer_pos[1], rev_primer_pos[2])
             
-            # add a second line for the restriction site
-            outputHTML <- paste(outputHTML, "<span style='opacity: 0;'>", substr(sequence, oligoStart, site_coords[1]-1), "</span>", 
-                                "<strong>",substr(sequence, site_coords[1], site_coords[2]), "</strong>", " - ", "<span style='color:blue'>",
-                                enzyme, "</span>", " (", "<span style=' font-weight: bold'>",  site,  "</span>", ") ",
-                                calculateFragments(RE_SITES, enzyme, site_coords_offset, site_oriented, SA_digestion),"<br/>", sep = "")
+            mut_site_assay <- substr(toupper(PAMonlyList[[j]][["site_assay"]]), forw_primer_pos[1], rev_primer_pos[2])
             
-          }
+            
+            ## 2. perform design of the AS-PCR primers
+            
+            # add full names of all primers to the output based on the gene, mutation, direction and detection target 
+            
+            # add a list of mutated nucleotides within a primer to highlight them later during the output stage
+            
+            ################################################################################################################
+            
+            # run design functions
+            forward_primers <-  design_forward_primers(mut_site_assay, wt_site_assay, lastCodonDifference, rev_primer)
+            reverse_primers <-  design_reverse_primers(mut_site_assay, wt_site_assay, firstCodonDifference, forw_primer)
+            
+            
+            primer_tables <- primerTablesOutput(forward_primers, reverse_primers, input$gene, input$Mutation)
+            
+            # add the final tags
+            outputHTML <- paste(outputHTML, primer_tables, "</div>", sep = "")
+            
+            
+            HTML(outputHTML)
+            
+          }) # end of lapply - PAMonlyList
           
-        }
+          
+        } else if ( input$mutatePAM == "no" & input$REsites == "yes" ) {
+          # CASE 3: input$mutatePAM == "no" & input$REsites == "yes"
+          
+          # list of silent REsite mutations designs
+          isolate({ noPAM_REsitesList <- noPAMmuts_REsiteSilentMuts() })
+          
+          ## 1. collect variables for AS-PCR primer designs
+          forw_primer_pos <- coords[["forw_primer"]]
+          rev_primer_pos <- coords[["rev_primer"]]
+          
+          # coordinates of the first and last target codon nucleotide change
+          offset <- forw_primer_pos[1] - 1            
+          
+          # iterate over the list items
+          lapply(1:length(noPAM_REsitesList), function(j) {
+            
+            # get sequence
+            sequence <- toupper(noPAM_REsitesList[[j]][["site_assay"]])
+            
+            # collect all mutated positions
+            mutated <- c()
+            REsite_muts <- c()
+            
+            # get new replacement codon sequence
+            new_codon <- substr(sequence, codon_pos[1], codon_pos[3])
+            
+            # codon mutations
+            codon_muts <- noPAM_REsitesList[[j]][["codon_diffs_coords"]]
+            
+            # get the codon mutation that introduced a restriction site
+            if( "enzymes" %in% names(noPAM_REsitesList[[j]])){
+              
+              # test if "RE_site_codon_diffs" in the relevant list
+              if("RE_site_codon_diffs" %in% names(noPAM_REsitesList[[j]][["enzymes"]][[1]])){
+                REsite_muts <- noPAM_REsitesList[[j]][["enzymes"]][[1]][["RE_site_codon_diffs"]]
+              }  
+            } 
+            
+            
+            # combine all mutations
+            mutated <- c(codon_muts, REsite_muts)
+            
+            # reverseComplement the sequence if the orientation is different
+            if(input$orientedOligo == "anti"){
+              
+              # update the sequence
+              sequence <- toString(reverseComplement(DNAString(sequence)))
+              
+              # update all position vectors 
+              # new_pos = nchar(sequence) - pos + 1
+              codon_pos <- nchar(sequence) - rev(codon_pos) + 1
+              pam_pos <- nchar(sequence) - rev(pam_pos) + 1
+              
+              # update the mutation positions
+              mutated <- nchar(sequence) - rev(mutated) + 1
+              codon_muts <- nchar(sequence) - rev(codon_muts) + 1
+              
+            }
+            
+            # define the start and end of oligos for the purposes of correct output
+            if(input$oriented == "sense"){
+              
+              # define the start and end of oligo coordinates
+              oligoStart <- pam_pos[1] - 3 - input$leftArmLength
+              oligoEnd <- pam_pos[1] - 3 + input$rightArmLength - 1
+              
+            }else{
+              
+              # define the start and end of oligo coordinates
+              oligoStart <- pam_pos[3] + 3 - input$leftArmLength + 1
+              oligoEnd <- pam_pos[3] + 3 + input$rightArmLength 
+              
+            }
+            
+            # organize all mutated positions into a single vector
+            all_special_pos <- sort(unique(c(codon_pos, pam_pos,mutated)))
+            
+            # consider checking whether start and end of the oligo are less and more than any labeled positions
+            # in the sequence and then updating them accordingly
+            # Also check that neither of the coordinates is negative or beyond the sequence length,
+            # change them accordingly
+            
+            
+            # add the strategy HTML if the program is at the beginning of the lapply loop
+            if(j == 1){
+              # initialize the output HTML
+              outputHTML <- HTML(paste(strategyHTML, "<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
+                                       oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j),  "<br/>", sep = ""))          
+              
+            } else{
+              
+              # initialize the output HTML
+              outputHTML <- HTML(paste("<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
+                                       oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j),  "<br/>", sep = ""))          
+              
+            }
+            
+            
+            ############################################ formatOligo function ##############################################
+            
+            outputHTML <- paste(outputHTML,  formatOligo(sequence, oligoStart, oligoEnd, all_special_pos, codon_pos, pam_pos, mutated), sep="")
+            
+            ###########################################################################################
+            
+            # get all information on the relevant restriction enzyme sites
+            if("enzymes" %in% names(noPAM_REsitesList[[j]])){
+              
+              # iterate over all known enzymes for that sequence
+              for(enzymeData in noPAM_REsitesList[[j]][["enzymes"]]){
+                
+                # store the restriction site information
+                enzyme <- enzymeData[["RE_enzyme"]]
+                site <- enzymeData[["RE_site"]]
+                site_coords <- enzymeData[["RE_site_coords"]]
+                site_oriented <- enzymeData[["RE_site_oriented"]]
+                
+                # change the coordinates of the restriction site according to the oligo orientation
+                if(input$orientedOligo == "anti"){
+                  site_coords <- nchar(sequence) - rev(site_coords) + 1
+                }
+                
+                # add a second line for the restriction site
+                outputHTML <- paste(outputHTML, "<span style='opacity: 0;'>", substr(sequence, oligoStart, site_coords[1]-1), "</span>", 
+                                    "<strong>",substr(sequence, site_coords[1], site_coords[2]), "</strong>", " - ", "<span style='color:blue'>",
+                                    enzyme, "</span>", " (", "<span style=' font-weight: bold'>",  site,  "</span>", ") ",
+                                    calculateFragments(RE_SITES, enzyme, enzymeData[["RE_site_coords"]], site_oriented, sequence), "<br/>", sep = "")
+                
+              }
+              
+            }
+            
+            ############################################ AS-PCR primers output #############################################
+            
+            # steps for outputting tables of primers and their characteristics
+            
+            # forward primer
+            forw_primer <- toupper(str_trim(input$forw_primer))
+            
+            # reverse primer
+            rev_primer <- toupper(str_trim(input$rev_primer))
+            
+            firstCodonDifference <- min(noPAM_REsitesList[[j]][["codon_diffs_coords"]])
+            lastCodonDifference <- max(noPAM_REsitesList[[j]][["codon_diffs_coords"]])
+            
+            # wild-type and mutant sequences making sure that the coordinates refer to them
+            # "sequence" variable contains the mutant sequence
+            
+            # wild-type sequence
+            # define the wild-type site assay for checking non-cutters
+            wt_seq <- coords[["sequence"]]
+            
+            # subset the full sequence to that amplified by primers
+            wt_site_assay <- substr(wt_seq, forw_primer_pos[1], rev_primer_pos[2])
+            
+            mut_site_assay <- toupper(noPAM_REsitesList[[j]][["site_assay"]])
+            
+            ## 2. perform design of the AS-PCR primers
+            
+            # add full names of all primers to the output based on the gene, mutation, direction and detection target 
+            
+            # add a list of mutated nucleotides within a primer to highlight them later during the output stage
+            
+            ################################################################################################################
+            
+            # run design functions
+            forward_primers <-  design_forward_primers(mut_site_assay, wt_site_assay, lastCodonDifference, rev_primer)
+            reverse_primers <-  design_reverse_primers(mut_site_assay, wt_site_assay, firstCodonDifference, forw_primer)
+            
+            
+            primer_tables <- primerTablesOutput(forward_primers, reverse_primers, input$gene, input$Mutation)
+            
+            # add the final tags
+            outputHTML <- paste(outputHTML, primer_tables, "</div>", sep = "")
+            
+            
+            HTML(outputHTML)
+            
+          }) # end of lapply - noPAM_REsitesList
+          
+        } else { # CASE 4: input$mutatePAM == "no" & input$REsites == "no"
+          
+          # codon mutations list
+          isolate({ CodonMutsList <- codonMutations() })
+          
+          ## collect variables for AS-PCR primer designs
+          forw_primer_pos <- coords[["forw_primer"]]
+          rev_primer_pos <- coords[["rev_primer"]]
+          
+          # coordinates of the first and last target codon nucleotide change
+          offset <- forw_primer_pos[1] - 1            
+          
+          # get back the position data to the original state before off-setting
+          codon_pos <- coords[["codon"]][1]: coords[["codon"]][2]
+          pam_pos <- coords[["PAM"]][1]: coords[["PAM"]][2]
+          
+          # iterate over each codon mutation
+          lapply(1:length(CodonMutsList), function(j){
+            
+            # get sequence
+            sequence <- toupper(CodonMutsList[[j]][["site_assay"]])
+            
+            # collect all mutated positions
+            mutated <- c()
+            
+            # codon mutations are the only ones in this case
+            mutated <- CodonMutsList[[j]][["codon_diffs_coords"]]
+            
+            # get new replacement codon sequence
+            new_codon <- substr(sequence, codon_pos[1], codon_pos[3])
+            
+            # reverseComplement the sequence if the orientation is different
+            if(input$orientedOligo == "anti"){
+              
+              # update the sequence
+              sequence <- toString(reverseComplement(DNAString(sequence)))
+              
+              # update all position vectors 
+              # new_pos = nchar(sequence) - pos + 1
+              codon_pos <- nchar(sequence) - rev(codon_pos) + 1
+              pam_pos <- nchar(sequence) - rev(pam_pos) + 1
+              
+              # update the mutation positions
+              mutated <- nchar(sequence) - rev(mutated) + 1
+              
+            }
+            
+            # define the start and end of oligos for the purposes of correct output
+            if(input$oriented == "sense"){
+              
+              # define the start and end of oligo coordinates
+              oligoStart <- pam_pos[1] - 3 - input$leftArmLength
+              oligoEnd <- pam_pos[1] - 3 + input$rightArmLength - 1
+              
+            }else{
+              
+              # define the start and end of oligo coordinates
+              oligoStart <- pam_pos[3] + 3 - input$leftArmLength + 1
+              oligoEnd <- pam_pos[3] + 3 + input$rightArmLength 
+              
+            } 
+            
+            # organize all mutated positions into a single vector
+            all_special_pos <- sort(unique(c(codon_pos, pam_pos,mutated)))
+            
+            
+            # add the strategy HTML if the program is at the beginning of the lapply loop
+            if(j == 1){
+              # initialize the output HTML
+              outputHTML <- HTML(paste(strategyHTML, "<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
+                                       oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j),  "<br/>", sep = ""))          
+              
+            } else{
+              
+              # initialize the output HTML
+              outputHTML <- HTML(paste("<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
+                                       oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j),  "<br/>", sep = ""))          
+              
+            }
+            
+            
+            ############################################ formatOligo function ##############################################
+            
+            outputHTML <- paste(outputHTML,  formatOligo(sequence, oligoStart, oligoEnd, all_special_pos, codon_pos, pam_pos, mutated), sep="")
+            
+            ###########################################################################################
+            
+            # get all information on the relevant restriction enzyme sites
+            if("enzymes" %in% names(CodonMutsList[[j]])){
+              
+              # iterate over all known enzymes for that sequence
+              for(enzymeData in CodonMutsList[[j]][["enzymes"]]){
+                
+                # store the restriction site information
+                enzyme <- enzymeData[["RE_enzyme"]]
+                site <- enzymeData[["RE_site"]]
+                site_coords <- enzymeData[["RE_site_coords"]]
+                site_oriented <- enzymeData[["RE_site_oriented"]]
+                
+                # change the coordinates of the restriction site according to the oligo orientation
+                if(input$orientedOligo == "anti"){
+                  site_coords <- nchar(sequence) - rev(site_coords) + 1
+                }
+                
+                # offset all the positions
+                
+                # update coordinates and sequence to avoid incorrect calculation
+                site_coords_offset <- enzymeData[["RE_site_coords"]] - offset
+                
+                
+                # subset the full sequence to that amplified by primers
+                SA_digestion <- substr(sequence, forw_primer_pos[1], rev_primer_pos[2])
+                
+                # add a second line for the restriction site
+                outputHTML <- paste(outputHTML, "<span style='opacity: 0;'>", substr(sequence, oligoStart, site_coords[1]-1), "</span>", 
+                                    "<strong>",substr(sequence, site_coords[1], site_coords[2]), "</strong>", " - ", "<span style='color:blue'>",
+                                    enzyme, "</span>", " (", "<span style=' font-weight: bold'>",  site,  "</span>", ") ",
+                                    calculateFragments(RE_SITES, enzyme, site_coords_offset, site_oriented, SA_digestion),"<br/>", sep = "")
+                
+              }
+              
+            }
+            
+            ############################################ AS-PCR primers output #############################################
+            
+            # steps for outputting tables of primers and their characteristics
+            
+            # forward primer
+            forw_primer <- toupper(str_trim(input$forw_primer))
+            
+            # reverse primer
+            rev_primer <- toupper(str_trim(input$rev_primer))
+            
+            firstCodonDifference <- min(CodonMutsList[[j]][["codon_diffs_coords"]]) - offset
+            lastCodonDifference <- max(CodonMutsList[[j]][["codon_diffs_coords"]]) - offset
+            
+            # wild-type and mutant sequences making sure that the coordinates refer to them
+            # "sequence" variable contains the mutant sequence
+            
+            # wild-type sequence
+            # define the wild-type site assay for checking non-cutters
+            wt_seq <- coords[["sequence"]]
+            
+            # subset the full sequence to that amplified by primers
+            wt_site_assay <- substr(wt_seq, forw_primer_pos[1], rev_primer_pos[2])
+            
+            mut_site_assay <- substr(toupper(CodonMutsList[[j]][["site_assay"]]), forw_primer_pos[1], rev_primer_pos[2]) 
+            
+            ## 2. perform design of the AS-PCR primers
+            
+            ################################################################################################################
+            
+            # run design functions
+            forward_primers <-  design_forward_primers(mut_site_assay, wt_site_assay, lastCodonDifference, rev_primer)
+            reverse_primers <-  design_reverse_primers(mut_site_assay, wt_site_assay, firstCodonDifference, forw_primer)
+            
+            
+            primer_tables <- primerTablesOutput(forward_primers, reverse_primers, input$gene, input$Mutation)
+            
+            # add the final tags
+            outputHTML <- paste(outputHTML, primer_tables, "</div>", sep = "")
+            
+            HTML(outputHTML)
+            
+          }) # end of lapply loop
+          
+        } # end of if-else statement series
         
-        ############################################ AS-PCR primers output #############################################
+      } else{ # Cas12a PAMs
         
-        # steps for outputting tables of primers and their characteristics
+        # PAM/sgRNA mutations are not done, but sites are introduced
+        # input$mutatePAM is not relevant so we do not test it
         
-        ## 1. collect variables for AS-PCR primer designs
-        forw_primer_pos <- coords[["forw_primer"]]
-        rev_primer_pos <- coords[["rev_primer"]]
+        if ( input$REsites == "yes" ) {
+          # CASE 3: input$mutatePAM == "no" & input$REsites == "yes"
+          
+          ## 1. collect variables for AS-PCR primer designs
+          forw_primer_pos <- coords[["forw_primer"]]
+          rev_primer_pos <- coords[["rev_primer"]]
+          
+          # coordinates of the first and last target codon nucleotide change
+          offset <- forw_primer_pos[1] - 1            
+          
+          # list of silent REsite mutations designs
+          isolate({ noPAM_REsitesList <- noPAMmuts_REsiteSilentMuts() })
+          
+          # iterate over the list items
+          lapply(1:length(noPAM_REsitesList), function(j) {
+            
+            # get sequence
+            sequence <- toupper(noPAM_REsitesList[[j]][["site_assay"]])
+            
+            # collect all mutated positions
+            mutated <- c()
+            REsite_muts <- c()
+            
+            # codon mutations
+            codon_muts <- noPAM_REsitesList[[j]][["codon_diffs_coords"]]
+            
+            # get new replacement codon sequence
+            new_codon <- substr(sequence, codon_pos[1], codon_pos[3])
+            
+            # get the codon mutation that introduced a restriction site
+            if( "enzymes" %in% names(noPAM_REsitesList[[j]])){
+              
+              # test if "RE_site_codon_diffs" in the relevant list
+              if("RE_site_codon_diffs" %in% names(noPAM_REsitesList[[j]][["enzymes"]][[1]])){
+                REsite_muts <- noPAM_REsitesList[[j]][["enzymes"]][[1]][["RE_site_codon_diffs"]]
+              }  
+            } 
+            
+            
+            # combine all mutations
+            mutated <- c(codon_muts, REsite_muts)
+            
+            # reverseComplement the sequence if the orientation is different
+            if(input$orientedOligo == "anti"){
+              
+              # update the sequence
+              sequence <- toString(reverseComplement(DNAString(sequence)))
+              
+              # update all position vectors 
+              # new_pos = nchar(sequence) - pos + 1
+              codon_pos <- nchar(sequence) - rev(codon_pos) + 1
+              pam_pos <- nchar(sequence) - rev(pam_pos) + 1
+              
+              # update the mutation positions
+              mutated <- nchar(sequence) - rev(mutated) + 1
+              codon_muts <- nchar(sequence) - rev(codon_muts) + 1
+              
+            }
+            
+            # define the start and end of oligo coordinates
+            # for Cas12a enzymes
+            
+            if(input$orientedOligo == "sense"){
+              oligoStart <- pam_pos[1] - 18 - input$leftArmLength + 1
+              oligoEnd <- pam_pos[1] - 18 + input$rightArmLength
+              
+            } else{
+              
+              oligoStart <- pam_pos[length(pam_pos)] + 18 - input$leftArmLength
+              oligoEnd <- pam_pos[length(pam_pos)] + 18 + input$rightArmLength - 1
+            } 
+            
+            
+            # organize all mutated positions into a single vector
+            all_special_pos <- sort(unique(c(codon_pos, pam_pos,mutated)))
+            
+            # consider checking whether start and end of the oligo are less and more than any labeled positions
+            # in the sequence and then updating them accordingly
+            # Also check that neither of the coordinates is negative or beyond the sequence length,
+            # change them accordingly
+            
+            
+            # add the strategy HTML if the program is at the beginning of the lapply loop
+            if(j == 1){
+              # initialize the output HTML
+              outputHTML <- HTML(paste(strategyHTML, "<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
+                                       oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j),  "<br/>", sep = ""))          
+              
+            } else{
+              
+              # initialize the output HTML
+              outputHTML <- HTML(paste("<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
+                                       oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j),  "<br/>", sep = ""))          
+              
+            }
+            
+            
+            ############################################ formatOligo function ##############################################
+            
+            outputHTML <- paste(outputHTML,  formatOligo(sequence, oligoStart, oligoEnd, all_special_pos, codon_pos, pam_pos, mutated), sep="")
+            
+            ###########################################################################################
+            
+            # get all information on the relevant restriction enzyme sites
+            
+            if("enzymes" %in% names(noPAM_REsitesList[[j]])){
+              
+              # iterate over all known enzymes for that sequence
+              for(enzymeData in noPAM_REsitesList[[j]][["enzymes"]]){
+                
+                # store the restriction site information
+                enzyme <- enzymeData[["RE_enzyme"]]
+                site <- enzymeData[["RE_site"]]
+                site_coords <- enzymeData[["RE_site_coords"]]
+                site_oriented <- enzymeData[["RE_site_oriented"]]
+                
+                # change the coordinates of the restriction site according to the oligo orientation
+                if(input$orientedOligo == "anti"){
+                  site_coords <- nchar(sequence) - rev(site_coords) + 1
+                }
+                
+                
+                # add a second line for the restriction site
+                outputHTML <- paste(outputHTML, "<span style='opacity: 0;'>", substr(sequence, oligoStart, site_coords[1]-1), "</span>", 
+                                    "<strong>",substr(sequence, site_coords[1], site_coords[2]), "</strong>", " - ", "<span style='color:blue'>",
+                                    enzyme, "</span>", " (", "<span style=' font-weight: bold'>",  site,  "</span>", ") ",
+                                    calculateFragments(RE_SITES, enzyme, enzymeData[["RE_site_coords"]], site_oriented, sequence),
+                                    "<br/>", sep = "")
+                
+              }
+              
+            }
+            
+            ############################################ AS-PCR primers output #############################################
+            
+            # steps for outputting tables of primers and their characteristics
+            
+            # forward primer
+            forw_primer <- toupper(str_trim(input$forw_primer))
+            
+            # reverse primer
+            rev_primer <- toupper(str_trim(input$rev_primer))
+            
+            firstCodonDifference <- min(noPAM_REsitesList[[j]][["codon_diffs_coords"]])
+            lastCodonDifference <- max(noPAM_REsitesList[[j]][["codon_diffs_coords"]])
+            
+            # wild-type and mutant sequences making sure that the coordinates refer to them
+            # "sequence" variable contains the mutant sequence
+            
+            # wild-type sequence
+            # define the wild-type site assay for checking non-cutters
+            wt_seq <- coords[["sequence"]]
+            
+            # subset the full sequence to that amplified by primers
+            wt_site_assay <- substr(wt_seq, forw_primer_pos[1], rev_primer_pos[2])
+            
+            mut_site_assay <- toupper(noPAM_REsitesList[[j]][["site_assay"]])
+            
+            
+            ## 2. perform design of the AS-PCR primers
+            
+            # add full names of all primers to the output based on the gene, mutation, direction and detection target 
+            
+            # add a list of mutated nucleotides within a primer to highlight them later during the output stage
+            
+            ################################################################################################################
+            
+            # run design functions
+            forward_primers <-  design_forward_primers(mut_site_assay, wt_site_assay, lastCodonDifference, rev_primer)
+            reverse_primers <-  design_reverse_primers(mut_site_assay, wt_site_assay, firstCodonDifference, forw_primer)
+            
+            
+            primer_tables <- primerTablesOutput(forward_primers, reverse_primers, input$gene, input$Mutation)
+            
+            # add the final tags
+            outputHTML <- paste(outputHTML, primer_tables, "</div>", sep = "")        
+            
+            HTML(outputHTML)
+            
+          }) # end of lapply - noPAM_REsitesList
+          
+        } else { # CASE 4: input$REsites == "no"
+          
+          # codon mutations list
+          isolate({ CodonMutsList <- codonMutations() })
+          
+          ## 1. collect variables for AS-PCR primer designs
+          forw_primer_pos <- coords[["forw_primer"]]
+          rev_primer_pos <- coords[["rev_primer"]]
+          
+          # coordinates of the first and last target codon nucleotide change
+          offset <- forw_primer_pos[1] - 1
+          
+          # get back the position data to the original state before off-setting
+          codon_pos <- coords[["codon"]][1]: coords[["codon"]][2]
+          pam_pos <- coords[["PAM"]][1]: coords[["PAM"]][2]
+          
+          
+          # iterate over each codon mutation
+          lapply(1:length(CodonMutsList), function(j){
+            
+            # get sequence
+            sequence <- toupper(CodonMutsList[[j]][["site_assay"]])
+            
+            # collect all mutated positions
+            mutated <- c()
+            
+            # codon mutations are the only ones in this case
+            mutated <- CodonMutsList[[j]][["codon_diffs_coords"]]
+            
+            # get new replacement codon sequence
+            new_codon <- substr(sequence, codon_pos[1], codon_pos[3])
+            
+            # reverseComplement the sequence if the orientation is different
+            if(input$orientedOligo == "anti"){
+              
+              # update the sequence
+              sequence <- toString(reverseComplement(DNAString(sequence)))
+              
+              # update all position vectors 
+              # new_pos = nchar(sequence) - pos + 1
+              codon_pos <- nchar(sequence) - rev(codon_pos) + 1
+              pam_pos <- nchar(sequence) - rev(pam_pos) + 1
+              
+              # update the mutation positions
+              mutated <- nchar(sequence) - rev(mutated) + 1
+              
+            }
+            
+            # define the start and end of oligos for the purposes of correct output
+            # for Cas12a enzymes
+            if(input$orientedOligo == "sense"){
+              oligoStart <- pam_pos[1] - 18 - input$leftArmLength + 1
+              oligoEnd <- pam_pos[1] - 18 + input$rightArmLength
+              
+            } else{
+              
+              oligoStart <- pam_pos[length(pam_pos)] + 18 - input$leftArmLength
+              oligoEnd <- pam_pos[length(pam_pos)] + 18 + input$rightArmLength - 1
+              
+            } 
+            
+            
+            # organize all mutated positions into a single vector
+            all_special_pos <- sort(unique(c(codon_pos, pam_pos,mutated)))
+            
+            
+            # add the strategy HTML if the program is at the beginning of the lapply loop
+            if(j == 1){
+              # initialize the output HTML
+              outputHTML <- HTML(paste(strategyHTML, "<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
+                                       oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j),  "<br/>", sep = ""))          
+              
+            } else{
+              
+              # initialize the output HTML
+              outputHTML <- HTML(paste("<div class='jumbotron', style='width: 100%; word-wrap:break-word; display:inline-block; font-family: Courier New; font-size: 14px;'>",
+                                       oligoHeader(input$gene, input$Mutation, orig_codon, new_codon, j),  "<br/>", sep = ""))          
+              
+            }
+            
+            
+            ############################################ formatOligo function ##############################################
+            
+            outputHTML <- paste(outputHTML,  formatOligo(sequence, oligoStart, oligoEnd, all_special_pos, codon_pos, pam_pos, mutated), sep="")
+            
+            ###########################################################################################
+            
+            # get all information on the relevant restriction enzyme sites
+            if("enzymes" %in% names(CodonMutsList[[j]])){
+              
+              # iterate over all known enzymes for that sequence
+              for(enzymeData in CodonMutsList[[j]][["enzymes"]]){
+                
+                # store the restriction site information
+                enzyme <- enzymeData[["RE_enzyme"]]
+                site <- enzymeData[["RE_site"]]
+                site_coords <- enzymeData[["RE_site_coords"]]
+                site_oriented <- enzymeData[["RE_site_oriented"]]
+                
+                # change the coordinates of the restriction site according to the oligo orientation
+                if(input$orientedOligo == "anti"){
+                  site_coords <- nchar(sequence) - rev(site_coords) + 1
+                }
+                
+                # offset all the positions
+                
+                # update coordinates and sequence to avoid incorrect calculation
+                site_coords_offset <- enzymeData[["RE_site_coords"]] - offset
+                
+                # subset the full sequence to that amplified by primers
+                SA_digestion <- substr(sequence, forw_primer_pos[1], rev_primer_pos[2])
+                
+                # add a second line for the restriction site
+                outputHTML <- paste(outputHTML, "<span style='opacity: 0;'>", substr(sequence, oligoStart, site_coords[1]-1), "</span>", 
+                                    "<strong>",substr(sequence, site_coords[1], site_coords[2]), "</strong>", " - ", "<span style='color:blue'>",
+                                    enzyme, "</span>", " (", "<span style=' font-weight: bold'>",  site,  "</span>", ") ",
+                                    calculateFragments(RE_SITES, enzyme, site_coords_offset, site_oriented, SA_digestion),"<br/>", sep = "")
+                
+              }
+              
+            }
+            
+            ############################################ AS-PCR primers output #############################################
+            
+            # steps for outputting tables of primers and their characteristics
+            
+            # forward primer
+            forw_primer <- toupper(str_trim(input$forw_primer))
+            
+            # reverse primer
+            rev_primer <- toupper(str_trim(input$rev_primer))
+            
+            firstCodonDifference <- min(CodonMutsList[[j]][["codon_diffs_coords"]]) - offset
+            lastCodonDifference <- max(CodonMutsList[[j]][["codon_diffs_coords"]]) - offset
+            
+            # wild-type and mutant sequences making sure that the coordinates refer to them
+            # "sequence" variable contains the mutant sequence
+            
+            # wild-type sequence
+            # define the wild-type site assay for checking non-cutters
+            wt_seq <- coords[["sequence"]]
+            
+            # subset the full sequence to that amplified by primers
+            wt_site_assay <- substr(wt_seq, forw_primer_pos[1], rev_primer_pos[2])
+            
+            mut_site_assay <- substr(toupper(CodonMutsList[[j]][["site_assay"]]), forw_primer_pos[1], rev_primer_pos[2])
+            
+            ## 2. perform design of the AS-PCR primers
+            
+            # add full names of all primers to the output based on the gene, mutation, direction and detection target 
+            
+            # add a list of mutated nucleotides within a primer to highlight them later during the output stage
+            
+            ################################################################################################################
+            
+            # run design functions
+            forward_primers <-  design_forward_primers(mut_site_assay, wt_site_assay, lastCodonDifference, rev_primer)
+            reverse_primers <-  design_reverse_primers(mut_site_assay, wt_site_assay, firstCodonDifference, forw_primer)
+            
+            
+            primer_tables <- primerTablesOutput(forward_primers, reverse_primers, input$gene, input$Mutation)
+            
+            # add the final tags
+            outputHTML <- paste(outputHTML, primer_tables, "</div>", sep = "")
+            
+            HTML(outputHTML)
+            
+          }) # end of lapply loop
+          
+        } # end of if-else statement series
         
-        
-        # forward primer
-        forw_primer <- toupper(str_trim(input$forw_primer))
-        
-        # reverse primer
-        rev_primer <- toupper(str_trim(input$rev_primer))
-        
-        # coordinates of the first and last target codon nucleotide change
-        offset <- forw_primer_pos[1] - 1
-        
-        firstCodonDifference <- min(mutated) - offset
-        lastCodonDifference <- max(mutated) - offset
-        
-        # wild-type and mutant sequences making sure that the coordinates refer to them
-        # "sequence" variable contains the mutant sequence
-        
-        # wild-type sequence
-        # define the wild-type site assay for checking non-cutters
-        wt_seq <- coords[["sequence"]]
-        
-        # subset the full sequence to that amplified by primers
-        wt_site_assay <- substr(wt_seq, forw_primer_pos[1], rev_primer_pos[2])
-        
-        ## 2. perform design of the AS-PCR primers
-        
-        # add full names of all primers to the output based on the gene, mutation, direction and detection target 
-        
-        # add a list of mutated nucleotides within a primer to highlight them later during the output stage
-        
-        ################################################################################################################
-        
-        # run design functions
-        forward_primers <-  design_forward_primers(sequence, wt_site_assay, lastCodonDifference, rev_primer)
-        reverse_primers <-  design_reverse_primers(sequence, wt_site_assay, firstCodonDifference, forw_primer)
-        
-        
-        primer_tables <- primerTablesOutput(forward_primers, reverse_primers)
-        
-        # add the final tags
-        outputHTML <- paste(outputHTML, primer_tables, "</div>", sep = "")
-        
-        HTML(outputHTML)
-        
-      }) # end of lapply loop
+      } # end of else part  
       
-    } # end of if-else statement series
+    }) # end of renderUI
     
-  } # end of else part  
-        
-  }) # end of renderUI
-    
- }) # end of observeEvent
+  }) # end of observeEvent
   
   # handlers to ensure that the page with new oligo designs will show from top to bottom
   observeEvent(input$leftArmLength, {
@@ -4592,15 +4632,15 @@ server <- function(input, output, session) {
     if(input$run >= 1){
       shinyjs::runjs("window.scrollTo(0,0);")  
     }
-  
+    
   })
   
   observeEvent(input$mutatePAM, {
-  
+    
     if(input$run >= 1){
       shinyjs::runjs("window.scrollTo(0,0);")  
     }
-  
+    
   })
   
   observeEvent(input$REsites, {
@@ -4608,7 +4648,7 @@ server <- function(input, output, session) {
     if(input$run >= 1){
       shinyjs::runjs("window.scrollTo(0,0);")  
     }
-  
+    
   })
   
   

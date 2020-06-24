@@ -1,14 +1,19 @@
 # knockinDesigner shiny app
 
-library(shiny)
-library(shinyFeedback)
 library(stringr)
 library(Biostrings)
 library(seqinr)
 library(biomaRt)
 library(DECIPHER)
 library(TmCalculator)
+library(httr)
+library(jsonlite)
+library(xml2)
+library(shiny)
 library(shinyjs)
+library(shinyFeedback)
+library(shinycssloaders)
+
 
 # Define UI for application that draws a histogram
 ui <- shinyUI(fluidPage(
@@ -42,10 +47,16 @@ ui <- shinyUI(fluidPage(
                            fluidRow(
                              
                              column(12,textAreaInput("CDS", "", label ="Coding DNA sequence", height = "100px")),
-                             column(12,textAreaInput("exon", "", label ="Mutation site exon sequence", height = "50px")),
-                             column(12,textAreaInput("intron5", "", label ="5' flanking fragment (>100 bp if possible)", height = "50px")),
-                             column(12,textAreaInput("intron3", "", label ="3' flanking fragment (>100 bp if possible)", height = "50px"))          
+                             column(12,textAreaInput("exon", "", label ="Mutation site exon sequence",  height = "50px")),
+                           ), 
+                           
+                           
+                           fluidRow(
+                             column(12,textAreaInput("intron5", "", label ="5' flanking fragment (>100 bp if possible) - optional*", height = "50px")),
+                             column(12,textAreaInput("intron3", "", label ="3' flanking fragment (>100 bp if possible) - optional*", height = "50px")),
+                             column(12, p("*Flanking sequences are optional as one or both primers may bind the exon", style="color:blue; font-size: 14px"))
                            )
+                           
                   ),
                   
                   tabPanel(p(class = "panel-title",  style="width: 100%, font-size: 14px; color: blue", "ID-based input"),
@@ -151,18 +162,12 @@ ui <- shinyUI(fluidPage(
                   
                   tabPanel(p(class = "panel-title",style="width: 100%, font-size: 14px; color: blue", "Results"), value = "Results", 
                            
-                           # commented out because of no useful purpose                           
-                           # conditionalPanel(
-                           #   condition = "input.run == FALSE", 
-                           #   tags$p("Oligo output data will be shown here once the program runs.")
-                           # ),
-                           
                            conditionalPanel(
                              
                              condition = "input.run == TRUE",
                              
                              # UI output
-                             uiOutput('finalOligos')
+                             withSpinner(uiOutput('finalOligos'), type = 4),
                              
                            )
                            
@@ -314,17 +319,6 @@ server <- function(input, output, session) {
   # shinyFeedback code for 5' flanking sequence input
   observeEvent(input$intron5, {
     
-    # the input has been submitted but the exon input was empty      
-    if(input$run & str_trim(input$intron5) == ""){
-      
-      feedbackWarning(
-        inputId = "intron5",
-        condition = str_trim(input$intron5) == "",
-        text = "5' flanking sequence cannot be blank. Please enter the 5' flanking sequence."
-      )
-      
-    }
-    
     # give a Success message once a 5' flanking sequence satisfies the requirements
     if(str_trim(input$intron5) != ""){
       intr5_input <- toupper(str_trim(input$intron5))
@@ -354,17 +348,6 @@ server <- function(input, output, session) {
   
   # shinyFeedback code for 3' flanking sequence input
   observeEvent(input$intron3, {
-    
-    # the input has been submitted but the exon input was empty      
-    if(input$run & str_trim(input$intron3) == ""){
-      
-      feedbackWarning(
-        inputId = "intron3",
-        condition = str_trim(input$intron3) == "",
-        text = "3' flanking sequence cannot be blank. Please enter the 3' flanking sequence."
-      )
-      
-    }
     
     # give a Success message once a 3' flanking sequence satisfies the requirements
     if(str_trim(input$intron3) != ""){
@@ -672,6 +655,19 @@ server <- function(input, output, session) {
     return(coordinates)
   }
   
+  # get primer coordinate differences
+  getPrimerDiffs <- function(primer1, primer2){
+    coordinates <- c()
+    
+    # here we can assume that primers are of identical sizes
+    for(i in 1:nchar(primer1)){
+      if(substr(primer1, i, i) != substr(primer2, i, i)){
+        coordinates <- c(coordinates, i)
+      }
+    }
+    return(coordinates)
+  }
+  
   
   # function to calculate which enzymes are non-cutters
   getNonCutters <- function(all_enzymes, dna){
@@ -952,8 +948,8 @@ server <- function(input, output, session) {
     # mutation validation
     mutString <- str_trim(input$Mutation)
     
-    validate(need( mutString != "", "Mutation name cannot be blank. Please enter a mutation."))    
-    validate(need(str_detect(mutString, "^[:alpha:]\\d{1,5}[a-zA-Z*]$"), "Mutation must have the pattern A123C or A123*, * - a stop codon. Please correct this." ))
+    shiny::validate(need( mutString != "", "Mutation name cannot be blank. Please enter a mutation."))    
+    shiny::validate(need(str_detect(mutString, "^[:alpha:]\\d{1,5}[a-zA-Z*]$"), "Mutation must have the pattern A123C or A123*, * - a stop codon. Please correct this." ))
     
     # if OK, store codon number
     codonNum <- as.integer(substr(mutString, 2, nchar(mutString)-1))
@@ -969,50 +965,82 @@ server <- function(input, output, session) {
     if(input$species != "" & input$gene != "" & input$transcriptID != "" ){
       
       # get the basic input information
-      dataset_input <- input$species
       trID <- str_trim(input$transcriptID)
       
-      # validate the Ensembl transcript ID
-      validate( need(str_detect(trID, "ENS[A-Z]{3}T[0-9]{11}"), "Please enter a valid Ensembl Transcript ID") )
+      # shiny::validate the Ensembl transcript ID
+      shiny::validate( need(str_detect(trID, "ENS[A-Z]{0,3}T[0-9]{11}"), "Please enter a valid Ensembl Transcript ID") )
+      
+      #########################################
+      # get transcript information
+      
+      server <- "https://rest.ensembl.org"
+      
+      ext <- paste0("/lookup/id/", trID, "?expand=1")
+      r <- GET(paste(server, ext, sep = ""), content_type("application/json"))
+      
+      # use this if you get a simple nested list back, otherwise inspect its structure
+      # head(data.frame(t(sapply(content(r),c))))
+      transcriptInfo <- fromJSON(toJSON(content(r)))
       
       
-      # query Ensembl Biomart using biomaRt package
-      ensembl <-  useMart("ensembl", dataset= dataset_input)
-      
+      #####################################
       # obtain exon sequences
-      exon_seqs <- getSequence(id = trID, type="ensembl_transcript_id", seqType="gene_exon", mart=ensembl)
       
-      # getting unspliced transcript
-      unspl_transcript <- getSequence(id = trID, type="ensembl_transcript_id", seqType="transcript_exon_intron", mart=ensembl) 
+      # obtain IDs
+      exonIDs <- unlist(transcriptInfo$Exon$id)
+      
+      ext <- "/sequence/id"
+      
+      exons_search_string <- paste0('{ "ids" : [', paste(shQuote(exonIDs, type="cmd"), collapse=", "), '] }')
+      exons_search_string
+      
+      r <- POST(paste(server, ext, sep = ""), content_type("application/json"), accept("application/json"), body = exons_search_string)
+      content(r)
+      
+      exon_seqs0 <-  unlist(fromJSON(toJSON(content(r)))$seq)
+      
+      #######################################
+      # obtain unspliced genomic sequence for the transcript
+      geneID <- transcriptInfo$Parent
+      
+      ext <- paste0("/sequence/id/", geneID, "?")
+      
+      r <- GET(paste(server, ext, sep = ""), content_type("application/json"))
+      
+      unspl_transcript <- content(r)$`seq`
+      
       
       # once both the exon sequences and the whole unspliced transcript are obtained,
       # it will be necessary to 
       
       # 1. Map the mutation to the target exon.
       
-      # define the coding sequence (CDS)
-      CDS_seq <- getSequence(id = trID, type="ensembl_transcript_id", seqType="coding", mart=ensembl)
-      CDS_input <- toupper(CDS_seq$coding)
+      #######################################
+      # obtain CDS sequence
+      ext <- paste0("/sequence/id/", trID, "?type=cds")
+      r <- GET(paste(server, ext, sep = ""), content_type("application/json"))
+      CDS_input <- content(r)$seq
       
       
-      # also get the full cDNA sequence 
-      CDNA_seq <- getSequence(id = trID, type="ensembl_transcript_id", seqType="cdna", mart=ensembl)
-      
+      #######################################
+      # obtain cDNA sequence
+      ext <- paste0("/sequence/id/", trID, "?type=cdna")
+      r <- GET(paste(server, ext, sep = ""), content_type("application/json"))
+      CDNA_seq <- content(r)$seq
       
       # step 1 algorithm:
       # 1. match all exons to the cDNA to get their coordinates within the cDNA
-      exon_cDNA_matches <- str_locate_all(CDNA_seq$cdna, exon_seqs$gene_exon) 
+      exon_cDNA_matches <- str_locate_all(CDNA_seq, exon_seqs0) 
       length(exon_cDNA_matches)
       
       # iterate over the whole list and store starts and ends sep
       df <- data.frame(matrix(unlist(exon_cDNA_matches), nrow=length(exon_cDNA_matches), byrow=T))
       
-      exon_seqs$start <- df$X1
-      exon_seqs$end <- df$X2
+      exon_seqs <- data.frame(gene_exon = exon_seqs0, start = df$X1, end = df$X2) 
       
       # 2. match the cDNA up to and including the mutation codon against the cDNA, derive the 
       #    mutation codon coordinate based on this match.
-      CDS_cDNA_match <- str_locate(CDNA_seq$cdna, substr(CDS_seq$coding, 1, 3*codonNum))
+      CDS_cDNA_match <- str_locate(CDNA_seq, substr(CDS_input, 1, 3*codonNum))
       codon_end_coord <- as.integer(CDS_cDNA_match[1,]["end"])
       
       
@@ -1021,7 +1049,7 @@ server <- function(input, output, session) {
       exon_input <- toupper(target_exon_df$gene_exon)
       
       # 4. Match the target exon to the unspliced transcript sequence and extract 5' and 3' intron sequences.
-      target_unspl_match <- str_locate(unspl_transcript$transcript_exon_intron, toupper(exon))
+      target_unspl_match <- str_locate(unspl_transcript, toupper(exon_input))
       
       target_exon_unspl_start <- as.integer(target_unspl_match[1,1])
       target_exon_unspl_end <- as.integer(target_unspl_match[1,2])
@@ -1031,29 +1059,22 @@ server <- function(input, output, session) {
       # test that there is enough sequence on the 5' side
       if(target_exon_unspl_start >= 301){
         
-        intron5 <- substr(unspl_transcript$transcript_exon_intron, target_exon_unspl_start - 300, target_exon_unspl_start-1)
+        intron5 <- substr(unspl_transcript, target_exon_unspl_start - 300, target_exon_unspl_start-1)
         
       } else{
         
-        # retrieve 300 bp upstream and join this sequence with the unspliced sequence
-        flank5 <- getSequence(id = trID, type="ensembl_transcript_id", seqType="gene_flank", upstream = 300, mart=ensembl)
-        
-        # add the 5' flanking region to the 5' "intron"
-        intron5 <- paste(flank5$gene_flank, substr(unspl_transcript$transcript_exon_intron, 1, target_exon_unspl_start-1), sep = "")
+        # take the shorter 5' intron
+        intron5 <- substr(unspl_transcript, 1, target_exon_unspl_start-1)
       }
       
       # test if there is enough sequence on the 3' side
-      if(nchar(unspl_transcript$transcript_exon_intron) >= target_exon_unspl_end + 300 ){
+      if(nchar(unspl_transcript) >= target_exon_unspl_end + 300 ){
         
-        intron3 <- substr(unspl_transcript$transcript_exon_intron, target_exon_unspl_end + 1, target_exon_unspl_end + 300)
+        intron3 <- substr(unspl_transcript, target_exon_unspl_end + 1, target_exon_unspl_end + 300)
         
       }else{
-        # retrieve 300 bp downstream from the transcript
-        flank3 <- getSequence(id = trID, type="ensembl_transcript_id", seqType="gene_flank", downstream = 300, mart=ensembl)    
-        
-        unspl_transcript_flanked <- paste(unspl_transcript$transcript_exon_intron, flank3$gene_flank, sep = "")
-        
-        intron3 <- substr(unspl_transcript_flanked, target_exon_unspl_end + 1, target_exon_unspl_start + 300)
+        # retrieve as much as possible of the gene sequence
+        intron3 <- substr(unspl_transcript, target_exon_unspl_end + 1, nchar(unspl_transcript))
       }
       
       # store the results of intron/flanking sequence selection 
@@ -1069,7 +1090,7 @@ server <- function(input, output, session) {
       intron5_input <- toupper(input$intron5)
       intron3_input <- toupper(input$intron3)
       
-      ## validate the input sequences
+      ## shiny::validate the input sequences
       
       # trimming the whitespace on both sides of the sequence
       CDS_input <- str_trim(CDS_input)
@@ -1077,9 +1098,9 @@ server <- function(input, output, session) {
       lettersCDS <- unique(strsplit(CDS_input, "")[[1]])
       
       # validation of the sequence
-      validate(need( CDS_input != "", "CDS cannot be blank. Please enter a CDS"))
-      validate(need( nchar(CDS_input) %% 3 == 0, "The length of CDS must be divisible by 3. Please enter a correct coding sequence."))
-      validate(need(sum(lettersCDS %in% DNA_BASES) == length(lettersCDS), "Please provide a correct coding sequence"))
+      shiny::validate(need( CDS_input != "", "CDS cannot be blank. Please enter a CDS"))
+      shiny::validate(need( nchar(CDS_input) %% 3 == 0, "The length of CDS must be divisible by 3. Please enter a correct coding sequence."))
+      shiny::validate(need(sum(lettersCDS %in% DNA_BASES) == length(lettersCDS), "Please provide a correct coding sequence"))
       
       # validation of the mutation string
       
@@ -1088,7 +1109,7 @@ server <- function(input, output, session) {
       wt_codon <- substr(CDS_input, codonCDS_pos[1], codonCDS_pos[2] )
       actAA <- toupper(substr(mutString, 1, 1))
       # perform validation
-      validate(need(GENETIC_CODE[[wt_codon]] == actAA, paste("The codon at position ", codonNum, " does not code for ", actAA, sep = "")))
+      shiny::validate(need(GENETIC_CODE[[wt_codon]] == actAA, paste("The codon at position ", codonNum, " does not code for ", actAA, sep = "")))
       
       # trimming the whitespace on both sides of the sequence
       exon_input <- str_trim(exon_input)
@@ -1096,8 +1117,8 @@ server <- function(input, output, session) {
       lettersExon <- unique(strsplit(exon_input, "")[[1]])
       
       # validation of the sequence
-      validate(need( exon_input != "", "Exon sequence cannot be blank. Please enter the exon sequence"))
-      validate(need(sum(lettersExon %in% DNA_BASES) == length(lettersExon), "Please provide a correct exon sequence")) 
+      shiny::validate(need( exon_input != "", "Exon sequence cannot be blank. Please enter the exon sequence"))
+      shiny::validate(need(sum(lettersExon %in% DNA_BASES) == length(lettersExon), "Please provide a correct exon sequence")) 
       
       
       # trimming the whitespace on both sides of the sequence
@@ -1106,8 +1127,9 @@ server <- function(input, output, session) {
       lettersIntron5 <- unique(strsplit(intron5_input, "")[[1]])
       
       # validation of the sequence
-      validate(need(intron5_input != "", "5' intron sequence cannot be blank. Please enter the 5' intron sequence"))
-      validate(need(sum(lettersIntron5 %in% DNA_BASES) == length(lettersIntron5), "Please provide a correct 5' intron sequence")) 
+      if(intron5_input != ""){
+        shiny::validate(need(sum(lettersIntron5 %in% DNA_BASES) == length(lettersIntron5), "Please provide a correct 5' intron sequence")) 
+      }
       
       
       # trimming the whitespace on both sides of the sequence
@@ -1116,49 +1138,49 @@ server <- function(input, output, session) {
       lettersIntron3 <- unique(strsplit(intron3_input, "")[[1]])
       
       # validation of the sequence
-      validate(need(intron3_input != "", "3' intron sequence cannot be blank. Please enter the 3' intron sequence"))
-      validate(need(sum(lettersIntron3 %in% DNA_BASES) == length(lettersIntron3), "Please provide a correct 3' intron sequence")) 
+      
+      if(intron3_input != ""){
+        shiny::validate(need(sum(lettersIntron3 %in% DNA_BASES) == length(lettersIntron3), "Please provide a correct 3' intron sequence")) 
+      }
       
       
     }# end of else for manual data input
     
-    # validation of the exon being inside the CDS
-    validate( need(str_detect(CDS_input, exon_input), "Please make sure your input exon matches the coding sequence.") )
     
     # generate a genomicString variable
     genomicString <- paste(intron5_input, exon_input, intron3_input, sep="")
     
-    # retrieve forward primer and reverse primers and validate them
+    # retrieve forward primer and reverse primers and shiny::validate them
     forw_primer <- toupper(str_trim(input$forw_primer))
     rev_primer <- toupper(str_trim(input$rev_primer))
     
     # empty primer fields
-    validate(need( forw_primer != "", "Forward primer sequence cannot be blank. Please enter a forward primer sequence"))
-    validate(need( rev_primer != "", "Reverse primer sequence cannot be blank. Please enter a reverse primer sequence"))
+    shiny::validate(need( forw_primer != "", "Forward primer sequence cannot be blank. Please enter a forward primer sequence"))
+    shiny::validate(need( rev_primer != "", "Reverse primer sequence cannot be blank. Please enter a reverse primer sequence"))
     
     # matching test for the forward primer
-    validate( need(str_detect(genomicString, forw_primer), "Please make sure your forward primer matches precisely either your flanking sequence or exon.") )
+    shiny::validate( need(str_detect(genomicString, forw_primer), "Please make sure your forward primer matches precisely either your flanking sequence or exon.") )
     
     # make a reverse complement of the reverse primer
     rc_rev_primer <- as.character(reverseComplement(DNAString(rev_primer)))
     
     # matching test for the reverse primer
-    validate( need(str_detect(genomicString, rc_rev_primer), "Please make sure your reverse primer matches precisely either your exon or flanking sequence.") )
+    shiny::validate( need(str_detect(genomicString, rc_rev_primer), "Please make sure your reverse primer matches precisely either your exon or flanking sequence.") )
     
     # retrieve the input sgRNA and validate it with respect to the genomic string
     # this would also validate the orientation of the sgRNA
     
     
     sgRNA <- toupper(str_trim(input$sgRNA_seq))
-    validate(need(sgRNA != "", "sgRNA sequence cannot be blank. Please enter the a sgRNA sequence"))
+    shiny::validate(need(sgRNA != "", "sgRNA sequence cannot be blank. Please enter the a sgRNA sequence"))
     
     if(input$oriented == "sense"){
-      validate( need(str_detect(genomicString, sgRNA), "Please make sure your sgRNA matches your sequence precisely and the orientation is correct.") )
+      shiny::validate( need(str_detect(genomicString, sgRNA), "Please make sure your sgRNA matches your sequence precisely and the orientation is correct.") )
     } else{
       
       rc_sgRNA <- as.character(reverseComplement(DNAString(sgRNA)))
       
-      validate( need(str_detect(genomicString, rc_sgRNA), "Please make sure your sgRNA matches your sequence precisely and the orientation is correct.") )
+      shiny::validate( need(str_detect(genomicString, rc_sgRNA), "Please make sure your sgRNA matches your sequence precisely and the orientation is correct.") )
       
     }
     
@@ -1198,7 +1220,7 @@ server <- function(input, output, session) {
     PAM_pattern <- getPAM_pattern(input$oriented, input$PAM)  
     
     # 4. perform validation based on regular expression of extracted PAM sequences with the corresponding PAM pattern
-    validate( need(str_detect(PAM_seq, PAM_pattern), "Please make sure your CRISPR system is selected correctly so the PAM matches the sequence.") )
+    shiny::validate( need(str_detect(PAM_seq, PAM_pattern), "Please make sure your CRISPR system is selected correctly so the PAM matches the sequence.") )
     
     #########################################################
     # END of validation section
@@ -1359,26 +1381,27 @@ server <- function(input, output, session) {
     # store parameters for Tm calculation 
     ambiguous=TRUE
     userset=NULL
-    variant="Primer3Plus"
     Na=0
     K=50
     Tris=10
     Mg=1.5
     dNTPs=0.2
     mismatch=TRUE
+    dnac = 100
+    saltcorr = 1
     
     # vector for storing Tms
     Temperatures <- c()
     
     for(i in 1:8){
-      Temperatures[i] <- Tm_NN(primers[i], ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN4",
-                               tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = 25,
-                               dnac2 = 25, selfcomp = FALSE, Na, K, Tris, Mg, dNTPs, saltcorr = 5)
+      Temperatures[i] <- Tm_NN(primers[i], ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN3",
+                               tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = dnac,
+                               dnac2 = dnac, selfcomp = FALSE, Na = Na, K = K, Tris = Tris, Mg = Mg, dNTPs = dNTPs, saltcorr = saltcorr)
     }
     
-    rev_primer_Tm <- Tm_NN(rev_primer, ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN4",
-                           tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = 25,
-                           dnac2 = 25, selfcomp = FALSE, Na, K, Tris, Mg, dNTPs, saltcorr = 5)
+    rev_primer_Tm <- Tm_NN(rev_primer, ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN3",
+                           tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = dnac,
+                           dnac2 = dnac, selfcomp = FALSE, Na = Na, K = K, Tris = Tris, Mg = Mg, dNTPs = dNTPs, saltcorr = saltcorr)
     
     # calculate Tm differences between all candidate primers and the reverse primer
     diffs <- abs(Temperatures - rev_primer_Tm) 
@@ -1392,13 +1415,14 @@ server <- function(input, output, session) {
     # selected wild-type primer
     wt_primer <- substr(wt_seq, lastCodonDifference - lengths[k] + 1, lastCodonDifference)
     
-    Tm_wt_primer = Tm_NN(wt_primer, ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN4",
-                         tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = 25,
-                         dnac2 = 25, selfcomp = FALSE, Na, K, Tris, Mg, dNTPs, saltcorr = 5)
+    Tm_wt_primer = Tm_NN(wt_primer, ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN3",
+                         tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = dnac,
+                         dnac2 = dnac, selfcomp = FALSE, Na = Na, K = K, Tris = Tris, Mg = Mg, dNTPs = dNTPs, saltcorr = saltcorr)
     
     # return the list with the mutant and wild-type forward primers
-    list(mut_forw_primer = list(sequence = selected_mut_primer, Tm = Temperatures[k]), wt_forw_primer = list(sequence = wt_primer, Tm = Tm_wt_primer),
-         common_rev_primer = list(sequence = rev_primer, Tm = rev_primer_Tm))  
+    list(mut_forw_primer = list(sequence = selected_mut_primer, Tm = round(Temperatures[k], 1)), 
+         wt_forw_primer = list(sequence = wt_primer, Tm = round(Tm_wt_primer, 1)),
+         common_rev_primer = list(sequence = rev_primer, Tm = round(rev_primer_Tm, 1) ))  
   }
   
   # code to design forward AS-PCR primers
@@ -1422,26 +1446,27 @@ server <- function(input, output, session) {
     # store parameters for Tm calculation 
     ambiguous=TRUE
     userset=NULL
-    variant="Primer3Plus"
     Na=0
     K=50
     Tris=10
     Mg=1.5
     dNTPs=0.2
     mismatch=TRUE
+    dnac = 100
+    saltcorr = 1
     
     # vector for storing Tms
     Temperatures <- c()
     
     for(i in 1:8){
-      Temperatures[i] <- Tm_NN(primers[i], ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN4",
-                               tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = 25,
-                               dnac2 = 25, selfcomp = FALSE, Na, K, Tris, Mg, dNTPs, saltcorr = 5)
+      Temperatures[i] <- Tm_NN(primers[i], ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN3",
+                               tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = dnac,
+                               dnac2 = dnac, selfcomp = FALSE, Na = Na, K = K, Tris = Tris, Mg = Mg, dNTPs = dNTPs, saltcorr = saltcorr)
     }
     
-    forw_primer_Tm <- Tm_NN(forw_primer, ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN4",
-                            tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = 25,
-                            dnac2 = 25, selfcomp = FALSE, Na, K, Tris, Mg, dNTPs, saltcorr = 5)
+    forw_primer_Tm <- Tm_NN(forw_primer, ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN3",
+                            tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = dnac,
+                            dnac2 = dnac, selfcomp = FALSE, Na = Na, K = K, Tris = Tris, Mg = Mg, dNTPs = dNTPs, saltcorr = saltcorr)
     
     # calculate Tm differences between all candidate primers and the reverse primer
     diffs <- abs(Temperatures - forw_primer_Tm) 
@@ -1456,22 +1481,43 @@ server <- function(input, output, session) {
     wt_forw_oligo <- substr(wt_seq, firstCodonDifference, firstCodonDifference + lengths[k] - 1)
     wt_primer <-  toString(reverseComplement(DNAString(wt_forw_oligo)))
     
-    # return the list with the mutant and wild-type forward primers
-    list(mut_rev_primer = selected_mut_primer, wt_rev_primer = wt_primer)  
-    
-    
-    Tm_wt_primer = Tm_NN(wt_primer, ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN4",
-                         tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = 25,
-                         dnac2 = 25, selfcomp = FALSE, Na, K, Tris, Mg, dNTPs, saltcorr = 5)
+    Tm_wt_primer = Tm_NN(wt_primer, ambiguous = FALSE, comSeq = NULL, shift = 0, nn_table = "DNA_NN3",
+                         tmm_table = "DNA_TMM1", imm_table = "DNA_IMM1",de_table = "DNA_DE1", dnac1 = dnac,
+                         dnac2 = dnac, selfcomp = FALSE, Na = Na, K = K, Tris = Tris, Mg = Mg, dNTPs = dNTPs, saltcorr = saltcorr)
     
     # return the list with the mutant and wild-type forward primers
-    list( common_forw_primer = list(sequence = forw_primer, Tm = forw_primer_Tm), mut_rev_primer = list(sequence = selected_mut_primer, Tm = Temperatures[k]), 
-          wt_rev_primer = list(sequence = wt_primer, Tm = Tm_wt_primer))
+    list( common_forw_primer = list(sequence = forw_primer, Tm = round(forw_primer_Tm,1)), mut_rev_primer = list(sequence = selected_mut_primer, Tm = round(Temperatures[k],1)), 
+          wt_rev_primer = list(sequence = wt_primer, Tm = round(Tm_wt_primer,1) ))
     
   }
   
+  # function to label nucleotide differences in knock-in detecting primers
+  markMutatedRed <- function(mutant_primer, wt_primer){
+    # get coordinates of differences
+    diffs <-  sort(getPrimerDiffs(mutant_primer, wt_primer))
+    
+    # initialize output
+    output <- substr(mutant_primer, 1, diffs[1]-1)
+    next_diff <- diffs[2]
+    
+    for(i in diffs[1]:nchar(mutant_primer)){
+      if(i %in% diffs){
+        output <- paste0(output, "<font style='color: red'>",  substr(mutant_primer, i, i), "</font>")
+        
+      } else{
+        
+        output <- paste0(output, substr(mutant_primer, i, i))
+      }
+      
+    }
+    
+    output
+  }
+  
+  
+  
   # compile primer tables
-  primerTablesOutput <- function(forward_primers, reverse_primers){
+  primerTablesOutput <- function(forward_primers, reverse_primers, gene, Mutation){
     
     outputHTML <- ""
     
@@ -1480,15 +1526,14 @@ server <- function(input, output, session) {
     # list(mut_forw_primer = list(sequence = selected_mut_primer, Tm = Temperatures[k]), wt_forw_primer = list(sequence = wt_primer, Tm = Tm_wt_primer),
     #      common_rev_primer = list(sequence = rev_primer, Tm = rev_primer_Tm))
     
-    
-    forw_primer_table <- "<table style='width:80%'><caption style='color:blue'>Forward AS-PCR assays</caption><tr><th>Primer</th><th>Sequence</th><th>Tm</th></tr>"
-    forw_primer_table <- paste(forw_primer_table,  "<tr><td>", "KI forward" ,"</td>", 
-                               "<td>", forward_primers[["mut_forw_primer"]]$sequence,"</td>", 
+    forw_primer_table <- "<table style='width:90%; font-size: 15px;'><caption style='color:blue'>Forward AS-PCR primers</caption><tr><th>Primer</th><th>Sequence</th><th>Tm</th></tr>"
+    forw_primer_table <- paste(forw_primer_table,  "<tr><td>",paste0(gene,'_', Mutation, '_for'), "</td>", 
+                               "<td>", markMutatedRed(forward_primers[["mut_forw_primer"]]$sequence, forward_primers[["wt_forw_primer"]]$sequence),"</td>", 
                                "<td>", round(forward_primers[["mut_forw_primer"]]$Tm, 2), "</td>", "</tr>",
-                               "<tr><td>", "Wild-type forward" ,"</td>",
+                               "<tr><td>", paste0(gene, '_WT_for'), "</td>",
                                "<td>", forward_primers[["wt_forw_primer"]]$sequence,"</td>", 
                                "<td>", round(forward_primers[["wt_forw_primer"]]$Tm, 2), "</td>", "</tr>",
-                               "<tr><td>", "common reverse" ,"</td>",
+                               "<tr><td>",paste0(gene,'_common_rev'), "</td>",
                                "<td>", forward_primers[["common_rev_primer"]]$sequence,"</td>", 
                                "<td>", round(forward_primers[["common_rev_primer"]]$Tm, 2), "</td>", "</tr>",
                                "</table>", sep = "")
@@ -1496,22 +1541,51 @@ server <- function(input, output, session) {
     # list( common_forw_primer = list(sequence = forw_primer, Tm = forw_primer_Tm), mut_rev_primer = list(sequence = selected_mut_primer, Tm = Temperatures[k]), 
     #       wt_rev_primer = list(sequence = wt_primer, Tm = Tm_wt_primer))
     
-    rev_primer_table <- "<table style='width:80%'><caption style='color:blue'>Reverse AS-PCR assays</caption><tr><th>Primer</th><th>Sequence</th><th>Tm</th></tr>"
-    rev_primer_table <- paste(rev_primer_table, "<tr><td>", "common forward" ,"</td>",
+    rev_primer_table <- "<table style='width:90%; font-size: 15px;'><caption style='color:blue'>Reverse AS-PCR primers</caption><tr><th>Primer</th><th>Sequence</th><th>Tm</th></tr>"
+    rev_primer_table <- paste(rev_primer_table, "<tr><td>", paste0(gene, '_common_for'), "</td>",
                               "<td>", reverse_primers[["common_forw_primer"]]$sequence,"</td>", 
                               "<td>", round(reverse_primers[["common_forw_primer"]]$Tm, 2), "</td></tr>",
-                              "<tr><td>", "KI reverse" ,"</td>", 
-                              "<td>", reverse_primers[["mut_rev_primer"]]$sequence,"</td>", 
+                              "<tr><td>",paste0(gene, '_', Mutation, '_rev'), "</td>", 
+                              "<td>", markMutatedRed(reverse_primers[["mut_rev_primer"]]$sequence, reverse_primers[["wt_rev_primer"]]$sequence),"</td>", 
                               "<td>", round(reverse_primers[["mut_rev_primer"]]$Tm, 2), "</td></tr>",
-                              "<tr><td>", "Wild-type reverse" ,"</td>",
+                              "<tr><td>", paste0(gene, '_WT_rev'), "</td>",
                               "<td>", reverse_primers[["wt_rev_primer"]]$sequence,"</td>", 
                               "<td>", round(reverse_primers[["wt_rev_primer"]]$Tm, 2), "</td></tr>",
                               "</table>", sep = "")
+    
+    assay_table <- "<table style='width:90%; font-size: 15px;'><caption style='color:blue'>AS-PCR Assays</caption><tr><th>Assay</th><th>Forward primer</th><th>Reverse primer</th><th>Tanneal</th></tr>"  
+    assay_table <- paste(assay_table, "<tr><td>",paste0(gene, ' ', Mutation, ' ',  "forward knock-in assay"), "</td>",
+                         "<td>", paste0(gene,'_', Mutation, '_for'), "</td>", "<td>", paste0(gene,'_common_rev'),  "</td>", 
+                         "<td>", round(min(forward_primers[["mut_forw_primer"]]$Tm, forward_primers[["common_rev_primer"]]$Tm)) - 3, "</td></tr>",
+                         "<tr><td>", paste0(gene, ' wild-type ',  "forward assay"), "</td>",
+                         "<td>", paste0(gene, '_WT_for'), "</td>", "<td>", paste0(gene,'_common_rev'),  "</td>",
+                         "<td>", round(min(forward_primers[["wt_forw_primer"]]$Tm, forward_primers[["common_rev_primer"]]$Tm)) - 3, "</td></tr>",
+                         "<tr><td>",paste0(gene, ' ', Mutation, ' ', "reverse knock-in assay"), "</td>",
+                         "<td>", paste0(gene, '_common_for'), "</td>", "<td>", paste0(gene, '_', Mutation, '_rev'),  "</td>", 
+                         "<td>", round(min(reverse_primers[["common_forw_primer"]]$Tm, reverse_primers[["mut_rev_primer"]]$Tm))-3, "</td>", "</tr>",
+                         "<tr><td>", paste0(gene, ' wild-type ',  "reverse assay"), "</td>",
+                         "<td>", paste0(gene, '_common_for'), "</td>", "<td>", paste0(gene, '_WT_rev'),  "</td>",
+                         "<td>", round(min(reverse_primers[["common_forw_primer"]]$Tm, reverse_primers[["wt_rev_primer"]]$Tm))-3, "</td>", "</tr>",
+                         "</table>", sep = "")
+    
+    
+    
+    
+    rev_assay_table <- paste(assay_table, "<tr><td>",paste0(gene, ' ', Mutation, ' ', "reverse knock-in assay"), "</td>",
+                             "<td>", paste0(gene,'_', Mutation, '_for'), '\n', paste0(gene,'_common_rev'),  "</td>", 
+                             "<td>", round(min(forward_primers[["mut_forw_primer"]]$Tm, forward_primers[["common_rev_primer"]]$Tm)) - 3, "</td>", "</tr>", "</table>", sep = "")
+    
+    
     
     outputHTML <- paste(outputHTML, "<table style='width: 100%'><tr>")
     outputHTML <- paste(outputHTML, "<td>", forw_primer_table, "</td>", sep = "")
     outputHTML <- paste(outputHTML, "<td>", rev_primer_table, "</td>", sep = "")
     outputHTML <- paste(outputHTML, "</tr></table>")
+    
+    outputHTML <- paste(outputHTML, "<table style='width: 100%'><tr>")
+    outputHTML <- paste(outputHTML, "<td>", assay_table, "</td>", sep = "")
+    outputHTML <- paste(outputHTML, "</tr>")
+    outputHTML <- paste(outputHTML, "</table>")
     
     outputHTML
   }
@@ -3442,6 +3516,11 @@ server <- function(input, output, session) {
           # the output for complete mutation design including both PAM/sgRNA and RE site mutations
           isolate({ outputList <- REsite_silent_mutations() })
           
+          ## 1. collect variables for AS-PCR primer designs
+          forw_primer_pos <- coords[["forw_primer"]]
+          rev_primer_pos <- coords[["rev_primer"]]
+          
+          
           # iterate over the list items
           lapply(1:length(outputList), function(j) {
             
@@ -3581,11 +3660,6 @@ server <- function(input, output, session) {
             
             # steps for outputting tables of primers and their characteristics
             
-            ## 1. collect variables for AS-PCR primer designs
-            forw_primer_pos <- coords[["forw_primer"]]
-            rev_primer_pos <- coords[["rev_primer"]]
-            
-            
             # forward primer
             forw_primer <- toupper(str_trim(input$forw_primer))
             
@@ -3593,8 +3667,8 @@ server <- function(input, output, session) {
             rev_primer <- toupper(str_trim(input$rev_primer))
             
             # coordinates of the first and last target codon nucleotide change
-            firstCodonDifference <- min(codon_muts)
-            lastCodonDifference <- max(codon_muts)
+            firstCodonDifference <- min(outputList[[j]][["codon_diffs_coords"]])
+            lastCodonDifference <- max(outputList[[j]][["codon_diffs_coords"]])
             
             # wild-type and mutant sequences making sure that the coordinates refer to them
             # "sequence" variable contains the mutant sequence
@@ -3605,6 +3679,7 @@ server <- function(input, output, session) {
             
             # subset the full sequence to that amplified by primers
             wt_site_assay <- substr(wt_seq, forw_primer_pos[1], rev_primer_pos[2])
+            mut_site_assay <- toupper(outputList[[j]][["site_assay"]])
             
             ## 2. perform design of the AS-PCR primers
             
@@ -3615,10 +3690,10 @@ server <- function(input, output, session) {
             ################################################################################################################
             
             # run design functions
-            forward_primers <-  design_forward_primers(sequence, wt_site_assay, lastCodonDifference, rev_primer)
-            reverse_primers <-  design_reverse_primers(sequence, wt_site_assay, firstCodonDifference, forw_primer)
+            forward_primers <-  design_forward_primers(mut_site_assay, wt_site_assay, lastCodonDifference, rev_primer)
+            reverse_primers <-  design_reverse_primers(mut_site_assay, wt_site_assay, firstCodonDifference, forw_primer)
             
-            primer_tables <- primerTablesOutput(forward_primers, reverse_primers)
+            primer_tables <- primerTablesOutput(forward_primers, reverse_primers, input$gene, input$Mutation)
             
             
             # add the final tags
@@ -3638,6 +3713,11 @@ server <- function(input, output, session) {
           # get back the position data to the original state before off-setting
           codon_pos <- coords[["codon"]][1]: coords[["codon"]][2]
           pam_pos <- coords[["PAM"]][1]: coords[["PAM"]][2]
+          
+          # first, get the primers and define the offset
+          forw_primer_pos <- coords[["forw_primer"]]
+          rev_primer_pos <- coords[["rev_primer"]]
+          offset <- forw_primer_pos[1] -1
           
           # iterate each oligo design
           lapply(1:length(PAMonlyList), function(j) {
@@ -3752,12 +3832,6 @@ server <- function(input, output, session) {
                 
                 # offset all the positions
                 
-                # first, get the primers
-                forw_primer_pos <- coords[["forw_primer"]]
-                rev_primer_pos <- coords[["rev_primer"]]
-                
-                offset <- forw_primer_pos[1] -1
-                
                 # update coordinates and sequence to avoid incorrect calculation
                 site_coords_offset <- enzymeData[["RE_site_coords"]] - offset
                 
@@ -3780,22 +3854,15 @@ server <- function(input, output, session) {
             
             # steps for outputting tables of primers and their characteristics
             
-            ## 1. collect variables for AS-PCR primer designs
-            forw_primer_pos <- coords[["forw_primer"]]
-            rev_primer_pos <- coords[["rev_primer"]]
-            
-            
             # forward primer
             forw_primer <- toupper(str_trim(input$forw_primer))
             
             # reverse primer
             rev_primer <- toupper(str_trim(input$rev_primer))
             
-            # coordinates of the first and last target codon nucleotide change
-            offset <- forw_primer_pos[1] - 1
             
-            firstCodonDifference <- min(codon_muts) - offset
-            lastCodonDifference <- max(codon_muts) - offset
+            firstCodonDifference <- min(PAMonlyList[[j]][["codon_diffs_coords"]]) - offset
+            lastCodonDifference <- max(PAMonlyList[[j]][["codon_diffs_coords"]]) - offset
             
             # wild-type and mutant sequences making sure that the coordinates refer to them
             # "sequence" variable contains the mutant sequence
@@ -3807,6 +3874,9 @@ server <- function(input, output, session) {
             # subset the full sequence to that amplified by primers
             wt_site_assay <- substr(wt_seq, forw_primer_pos[1], rev_primer_pos[2])
             
+            mut_site_assay <- substr(toupper(PAMonlyList[[j]][["site_assay"]]), forw_primer_pos[1], rev_primer_pos[2])
+            
+            
             ## 2. perform design of the AS-PCR primers
             
             # add full names of all primers to the output based on the gene, mutation, direction and detection target 
@@ -3816,11 +3886,11 @@ server <- function(input, output, session) {
             ################################################################################################################
             
             # run design functions
-            forward_primers <-  design_forward_primers(sequence, wt_site_assay, lastCodonDifference, rev_primer)
-            reverse_primers <-  design_reverse_primers(sequence, wt_site_assay, firstCodonDifference, forw_primer)
+            forward_primers <-  design_forward_primers(mut_site_assay, wt_site_assay, lastCodonDifference, rev_primer)
+            reverse_primers <-  design_reverse_primers(mut_site_assay, wt_site_assay, firstCodonDifference, forw_primer)
             
             
-            primer_tables <- primerTablesOutput(forward_primers, reverse_primers)
+            primer_tables <- primerTablesOutput(forward_primers, reverse_primers, input$gene, input$Mutation)
             
             # add the final tags
             outputHTML <- paste(outputHTML, primer_tables, "</div>", sep = "")
@@ -3836,6 +3906,13 @@ server <- function(input, output, session) {
           
           # list of silent REsite mutations designs
           isolate({ noPAM_REsitesList <- noPAMmuts_REsiteSilentMuts() })
+          
+          ## 1. collect variables for AS-PCR primer designs
+          forw_primer_pos <- coords[["forw_primer"]]
+          rev_primer_pos <- coords[["rev_primer"]]
+          
+          # coordinates of the first and last target codon nucleotide change
+          offset <- forw_primer_pos[1] - 1            
           
           # iterate over the list items
           lapply(1:length(noPAM_REsitesList), function(j) {
@@ -3882,7 +3959,6 @@ server <- function(input, output, session) {
               codon_muts <- nchar(sequence) - rev(codon_muts) + 1
               
             }
-            
             
             # define the start and end of oligos for the purposes of correct output
             if(input$oriented == "sense"){
@@ -3960,22 +4036,14 @@ server <- function(input, output, session) {
             
             # steps for outputting tables of primers and their characteristics
             
-            ## 1. collect variables for AS-PCR primer designs
-            forw_primer_pos <- coords[["forw_primer"]]
-            rev_primer_pos <- coords[["rev_primer"]]
-            
-            
             # forward primer
             forw_primer <- toupper(str_trim(input$forw_primer))
             
             # reverse primer
             rev_primer <- toupper(str_trim(input$rev_primer))
             
-            # coordinates of the first and last target codon nucleotide change
-            offset <- forw_primer_pos[1] - 1
-            
-            firstCodonDifference <- min(codon_muts)
-            lastCodonDifference <- max(codon_muts)
+            firstCodonDifference <- min(noPAM_REsitesList[[j]][["codon_diffs_coords"]])
+            lastCodonDifference <- max(noPAM_REsitesList[[j]][["codon_diffs_coords"]])
             
             # wild-type and mutant sequences making sure that the coordinates refer to them
             # "sequence" variable contains the mutant sequence
@@ -3987,6 +4055,8 @@ server <- function(input, output, session) {
             # subset the full sequence to that amplified by primers
             wt_site_assay <- substr(wt_seq, forw_primer_pos[1], rev_primer_pos[2])
             
+            mut_site_assay <- toupper(noPAM_REsitesList[[j]][["site_assay"]])
+            
             ## 2. perform design of the AS-PCR primers
             
             # add full names of all primers to the output based on the gene, mutation, direction and detection target 
@@ -3996,11 +4066,11 @@ server <- function(input, output, session) {
             ################################################################################################################
             
             # run design functions
-            forward_primers <-  design_forward_primers(sequence, wt_site_assay, lastCodonDifference, rev_primer)
-            reverse_primers <-  design_reverse_primers(sequence, wt_site_assay, firstCodonDifference, forw_primer)
+            forward_primers <-  design_forward_primers(mut_site_assay, wt_site_assay, lastCodonDifference, rev_primer)
+            reverse_primers <-  design_reverse_primers(mut_site_assay, wt_site_assay, firstCodonDifference, forw_primer)
             
             
-            primer_tables <- primerTablesOutput(forward_primers, reverse_primers)
+            primer_tables <- primerTablesOutput(forward_primers, reverse_primers, input$gene, input$Mutation)
             
             # add the final tags
             outputHTML <- paste(outputHTML, primer_tables, "</div>", sep = "")
@@ -4014,6 +4084,13 @@ server <- function(input, output, session) {
           
           # codon mutations list
           isolate({ CodonMutsList <- codonMutations() })
+          
+          ## collect variables for AS-PCR primer designs
+          forw_primer_pos <- coords[["forw_primer"]]
+          rev_primer_pos <- coords[["rev_primer"]]
+          
+          # coordinates of the first and last target codon nucleotide change
+          offset <- forw_primer_pos[1] - 1            
           
           # get back the position data to the original state before off-setting
           codon_pos <- coords[["codon"]][1]: coords[["codon"]][2]
@@ -4090,9 +4167,6 @@ server <- function(input, output, session) {
             
             ###########################################################################################
             
-            # add the final tags
-            outputHTML <- paste(outputHTML, "<br/>", sep = "")
-            
             # get all information on the relevant restriction enzyme sites
             if("enzymes" %in% names(CodonMutsList[[j]])){
               
@@ -4111,12 +4185,6 @@ server <- function(input, output, session) {
                 }
                 
                 # offset all the positions
-                
-                # first, get the primers
-                forw_primer_pos <- coords[["forw_primer"]]
-                rev_primer_pos <- coords[["rev_primer"]]
-                
-                offset <- forw_primer_pos[1] -1
                 
                 # update coordinates and sequence to avoid incorrect calculation
                 site_coords_offset <- enzymeData[["RE_site_coords"]] - offset
@@ -4139,22 +4207,14 @@ server <- function(input, output, session) {
             
             # steps for outputting tables of primers and their characteristics
             
-            ## 1. collect variables for AS-PCR primer designs
-            forw_primer_pos <- coords[["forw_primer"]]
-            rev_primer_pos <- coords[["rev_primer"]]
-            
-            
             # forward primer
             forw_primer <- toupper(str_trim(input$forw_primer))
             
             # reverse primer
             rev_primer <- toupper(str_trim(input$rev_primer))
             
-            # coordinates of the first and last target codon nucleotide change
-            offset <- forw_primer_pos[1] - 1
-            
-            firstCodonDifference <- min(mutated) - offset
-            lastCodonDifference <- max(mutated) - offset
+            firstCodonDifference <- min(CodonMutsList[[j]][["codon_diffs_coords"]]) - offset
+            lastCodonDifference <- max(CodonMutsList[[j]][["codon_diffs_coords"]]) - offset
             
             # wild-type and mutant sequences making sure that the coordinates refer to them
             # "sequence" variable contains the mutant sequence
@@ -4166,20 +4226,18 @@ server <- function(input, output, session) {
             # subset the full sequence to that amplified by primers
             wt_site_assay <- substr(wt_seq, forw_primer_pos[1], rev_primer_pos[2])
             
+            mut_site_assay <- substr(toupper(CodonMutsList[[j]][["site_assay"]]), forw_primer_pos[1], rev_primer_pos[2]) 
+            
             ## 2. perform design of the AS-PCR primers
-            
-            # add full names of all primers to the output based on the gene, mutation, direction and detection target 
-            
-            # add a list of mutated nucleotides within a primer to highlight them later during the output stage
             
             ################################################################################################################
             
             # run design functions
-            forward_primers <-  design_forward_primers(sequence, wt_site_assay, lastCodonDifference, rev_primer)
-            reverse_primers <-  design_reverse_primers(sequence, wt_site_assay, firstCodonDifference, forw_primer)
+            forward_primers <-  design_forward_primers(mut_site_assay, wt_site_assay, lastCodonDifference, rev_primer)
+            reverse_primers <-  design_reverse_primers(mut_site_assay, wt_site_assay, firstCodonDifference, forw_primer)
             
             
-            primer_tables <- primerTablesOutput(forward_primers, reverse_primers)
+            primer_tables <- primerTablesOutput(forward_primers, reverse_primers, input$gene, input$Mutation)
             
             # add the final tags
             outputHTML <- paste(outputHTML, primer_tables, "</div>", sep = "")
@@ -4197,6 +4255,13 @@ server <- function(input, output, session) {
         
         if ( input$REsites == "yes" ) {
           # CASE 3: input$mutatePAM == "no" & input$REsites == "yes"
+          
+          ## 1. collect variables for AS-PCR primer designs
+          forw_primer_pos <- coords[["forw_primer"]]
+          rev_primer_pos <- coords[["rev_primer"]]
+          
+          # coordinates of the first and last target codon nucleotide change
+          offset <- forw_primer_pos[1] - 1            
           
           # list of silent REsite mutations designs
           isolate({ noPAM_REsitesList <- noPAMmuts_REsiteSilentMuts() })
@@ -4325,22 +4390,14 @@ server <- function(input, output, session) {
             
             # steps for outputting tables of primers and their characteristics
             
-            ## 1. collect variables for AS-PCR primer designs
-            forw_primer_pos <- coords[["forw_primer"]]
-            rev_primer_pos <- coords[["rev_primer"]]
-            
-            
             # forward primer
             forw_primer <- toupper(str_trim(input$forw_primer))
             
             # reverse primer
             rev_primer <- toupper(str_trim(input$rev_primer))
             
-            # coordinates of the first and last target codon nucleotide change
-            offset <- forw_primer_pos[1] - 1
-            
-            firstCodonDifference <- min(codon_muts)
-            lastCodonDifference <- max(codon_muts)
+            firstCodonDifference <- min(noPAM_REsitesList[[j]][["codon_diffs_coords"]])
+            lastCodonDifference <- max(noPAM_REsitesList[[j]][["codon_diffs_coords"]])
             
             # wild-type and mutant sequences making sure that the coordinates refer to them
             # "sequence" variable contains the mutant sequence
@@ -4352,6 +4409,9 @@ server <- function(input, output, session) {
             # subset the full sequence to that amplified by primers
             wt_site_assay <- substr(wt_seq, forw_primer_pos[1], rev_primer_pos[2])
             
+            mut_site_assay <- toupper(noPAM_REsitesList[[j]][["site_assay"]])
+            
+            
             ## 2. perform design of the AS-PCR primers
             
             # add full names of all primers to the output based on the gene, mutation, direction and detection target 
@@ -4361,11 +4421,11 @@ server <- function(input, output, session) {
             ################################################################################################################
             
             # run design functions
-            forward_primers <-  design_forward_primers(sequence, wt_site_assay, lastCodonDifference, rev_primer)
-            reverse_primers <-  design_reverse_primers(sequence, wt_site_assay, firstCodonDifference, forw_primer)
+            forward_primers <-  design_forward_primers(mut_site_assay, wt_site_assay, lastCodonDifference, rev_primer)
+            reverse_primers <-  design_reverse_primers(mut_site_assay, wt_site_assay, firstCodonDifference, forw_primer)
             
             
-            primer_tables <- primerTablesOutput(forward_primers, reverse_primers)
+            primer_tables <- primerTablesOutput(forward_primers, reverse_primers, input$gene, input$Mutation)
             
             # add the final tags
             outputHTML <- paste(outputHTML, primer_tables, "</div>", sep = "")        
@@ -4379,9 +4439,17 @@ server <- function(input, output, session) {
           # codon mutations list
           isolate({ CodonMutsList <- codonMutations() })
           
+          ## 1. collect variables for AS-PCR primer designs
+          forw_primer_pos <- coords[["forw_primer"]]
+          rev_primer_pos <- coords[["rev_primer"]]
+          
+          # coordinates of the first and last target codon nucleotide change
+          offset <- forw_primer_pos[1] - 1
+          
           # get back the position data to the original state before off-setting
           codon_pos <- coords[["codon"]][1]: coords[["codon"]][2]
           pam_pos <- coords[["PAM"]][1]: coords[["PAM"]][2]
+          
           
           # iterate over each codon mutation
           lapply(1:length(CodonMutsList), function(j){
@@ -4472,15 +4540,8 @@ server <- function(input, output, session) {
                 
                 # offset all the positions
                 
-                # first, get the primers
-                forw_primer_pos <- coords[["forw_primer"]]
-                rev_primer_pos <- coords[["rev_primer"]]
-                
-                offset <- forw_primer_pos[1] -1
-                
                 # update coordinates and sequence to avoid incorrect calculation
                 site_coords_offset <- enzymeData[["RE_site_coords"]] - offset
-                
                 
                 # subset the full sequence to that amplified by primers
                 SA_digestion <- substr(sequence, forw_primer_pos[1], rev_primer_pos[2])
@@ -4499,22 +4560,14 @@ server <- function(input, output, session) {
             
             # steps for outputting tables of primers and their characteristics
             
-            ## 1. collect variables for AS-PCR primer designs
-            forw_primer_pos <- coords[["forw_primer"]]
-            rev_primer_pos <- coords[["rev_primer"]]
-            
-            
             # forward primer
             forw_primer <- toupper(str_trim(input$forw_primer))
             
             # reverse primer
             rev_primer <- toupper(str_trim(input$rev_primer))
             
-            # coordinates of the first and last target codon nucleotide change
-            offset <- forw_primer_pos[1] - 1
-            
-            firstCodonDifference <- min(mutated) - offset
-            lastCodonDifference <- max(mutated) - offset
+            firstCodonDifference <- min(CodonMutsList[[j]][["codon_diffs_coords"]]) - offset
+            lastCodonDifference <- max(CodonMutsList[[j]][["codon_diffs_coords"]]) - offset
             
             # wild-type and mutant sequences making sure that the coordinates refer to them
             # "sequence" variable contains the mutant sequence
@@ -4526,6 +4579,8 @@ server <- function(input, output, session) {
             # subset the full sequence to that amplified by primers
             wt_site_assay <- substr(wt_seq, forw_primer_pos[1], rev_primer_pos[2])
             
+            mut_site_assay <- substr(toupper(CodonMutsList[[j]][["site_assay"]]), forw_primer_pos[1], rev_primer_pos[2])
+            
             ## 2. perform design of the AS-PCR primers
             
             # add full names of all primers to the output based on the gene, mutation, direction and detection target 
@@ -4535,11 +4590,11 @@ server <- function(input, output, session) {
             ################################################################################################################
             
             # run design functions
-            forward_primers <-  design_forward_primers(sequence, wt_site_assay, lastCodonDifference, rev_primer)
-            reverse_primers <-  design_reverse_primers(sequence, wt_site_assay, firstCodonDifference, forw_primer)
+            forward_primers <-  design_forward_primers(mut_site_assay, wt_site_assay, lastCodonDifference, rev_primer)
+            reverse_primers <-  design_reverse_primers(mut_site_assay, wt_site_assay, firstCodonDifference, forw_primer)
             
             
-            primer_tables <- primerTablesOutput(forward_primers, reverse_primers)
+            primer_tables <- primerTablesOutput(forward_primers, reverse_primers, input$gene, input$Mutation)
             
             # add the final tags
             outputHTML <- paste(outputHTML, primer_tables, "</div>", sep = "")
@@ -4598,5 +4653,6 @@ server <- function(input, output, session) {
   
   
 } # end of server
+
 # Run the application 
 shinyApp(ui = ui, server = server)
