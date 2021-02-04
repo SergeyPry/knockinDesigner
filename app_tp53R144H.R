@@ -66,24 +66,7 @@ ui <- shinyUI(fluidPage(
                   tabPanel(p(class = "panel-title",  style="width: 100%, font-size: 14px; color: blue", "ID-based input"),
                            tags$p(),
                            
-                           fluidRow(column(7, selectInput("species", "Species", 
-                                                          choices = list("select your species" = "",
-                                                                         "Human (Homo sapiens)" = "hsapiens_gene_ensembl", "Mouse (Mus musculus)" = "mmusculus_gene_ensembl",
-                                                                         "Rat (Rattus norvegicus)" = "rnorvegicus_gene_ensembl", "Xenopus tropicalis" = "xtropicalis_gene_ensembl",
-                                                                         "Medaka (Oryzias latipes)" = "olatipes_gene_ensembl", "Zebrafish (Danio rerio)" = "drerio_gene_ensembl",
-                                                                         "Fruitfly (Drosophila melanogaster)" = "dmelanogaster_gene_ensembl", "Caenorhabditis elegans" = "celegans_gene_ensembl",
-                                                                         "Baker's yeast (Saccharomyces cerevisiae)" = "scerevisiae_gene_ensembl", "Gorilla (Gorilla gorilla)" = "ggorilla_gene_ensembl", 
-                                                                         "Gibbon  (Nomascus leucogenys)" = "nleucogenys_gene_ensembl","Chimpanzee (Pan troglodytes)" = "ptroglodytes_gene_ensembl", 
-                                                                         "Pig (Sus scrofa)" = "sscrofa_gene_ensembl", "Sheep (Ovis aries)" = "oaries_gene_ensembl",
-                                                                         "Cow (Bos taurus)" = "btaurus_gene_ensembl", "Rabbit (Oryctolagus cuniculus)" = "ocuniculus_gene_ensembl",
-                                                                         "Dog (Canis familiaris)" = "cfamiliaris_gene_ensembl", "Cat (Felis catus)" = "fcatus_gene_ensembl",
-                                                                         "Ferret (Mustela putorius furo)" = "mfuro_gene_ensembl", "Turkey (Meleagris gallopavo)" = "mgallopavo_gene_ensembl", "Chicken (Gallus gallus)" = "ggallus_gene_ensembl",
-                                                                         "Duck (Anas platyrhynchos)" = "aplatyrhynchos_gene_ensembl", "Spotted gar (Lepisosteus oculatus)" = "loculatus_gene_ensembl", 
-                                                                         "Tilapia (Oreochromis niloticus )" = "oniloticus_gene_ensembl","Tetraodon viridis" = "tnigroviridis_gene_ensembl", 
-                                                                         "Platyfish (Xiphophorus maculatus)" = "xmaculatus_gene_ensembl","Fugu (Fugu rubripes)" = "trubripes_gene_ensembl", 
-                                                                         "Cod (Gadus morhua)" = "gmorhua_gene_ensembl", "Ciona savignyi" = "csavignyi_gene_ensembl", 
-                                                                         "Ciona intestinalis" = "cintestinalis_gene_ensembl"))), 
-                                    column(5, textInput("transcriptID", "Ensembl Transcript ID")) )
+                           fluidRow( column(6, textInput("transcriptID", "Ensembl Transcript ID")) )
                  )
                   
       ), 
@@ -152,6 +135,13 @@ ui <- shinyUI(fluidPage(
         
       ),
       
+      fluidRow(
+        
+        column( 6, sliderInput("max_number", "Maximum oligo number", min = 5, max = 50, value = 20, step = 5)),
+        column( 6, radioButtons("oligo_sorting", "Choose how to sort oligos", 
+                                c("No sorting" = "no", "Random" = "random", "Average mutation-codon distance" = "average_dist") ))
+      ),
+      
        
       actionButton("run", "Submit")
     ), # end of sidebarPanel      
@@ -217,7 +207,7 @@ server <- function(input, output, session) {
       
       feedbackWarning(
         inputId = "Mutation",
-        condition = !str_detect(str_trim(input$Mutation), "^[a-zA-Z*]\\d{1,5}[a-zA-Z*]$"),
+        show = !str_detect(str_trim(input$Mutation), "^[a-zA-Z*]\\d{1,5}[a-zA-Z*]$"),
         text = "Mutation must have the pattern A123C or A123*. Please correct this."
       )
       
@@ -225,10 +215,9 @@ server <- function(input, output, session) {
       
       feedbackSuccess(
         inputId = "Mutation",
-        condition = str_detect(str_trim(input$Mutation), "^[a-zA-Z*]\\d{1,5}[a-zA-Z*]$"),
-        text = " "
+        show = str_detect(str_trim(input$Mutation), "^[a-zA-Z*]\\d{1,5}[a-zA-Z*]$"),
+        text = "  "
       )
-      
       
     }
     
@@ -237,7 +226,7 @@ server <- function(input, output, session) {
       
       feedbackWarning(
         inputId = "Mutation",
-        condition = str_trim(input$Mutation) == "",
+        show = str_trim(input$Mutation) == "",
         text = "Mutation name cannot be blank. Please enter a mutation."
       )
       
@@ -256,7 +245,7 @@ server <- function(input, output, session) {
       
       feedbackWarning(
         inputId = "CDS",
-        condition = str_trim(input$CDS) == "",
+        show = str_trim(input$CDS) == "",
         text = "CDS cannot be blank. Please enter the coding sequence."
       )
       
@@ -269,7 +258,7 @@ server <- function(input, output, session) {
       
       feedbackSuccess(
         inputId = "CDS",
-        condition = (nchar(CDS_input) %% 3 == 0) & (sum(lettersCDS %in% DNA_BASES) == length(lettersCDS)),
+        show = (nchar(CDS_input) %% 3 == 0) & (sum(lettersCDS %in% DNA_BASES) == length(lettersCDS)),
         text = " "
       )
       
@@ -278,7 +267,7 @@ server <- function(input, output, session) {
         
         feedbackWarning(
           inputId = "CDS",
-          condition = (nchar(CDS_input) %% 3 != 0) | (sum(lettersCDS %in% DNA_BASES) != length(lettersCDS)),
+          show = (nchar(CDS_input) %% 3 != 0) | (sum(lettersCDS %in% DNA_BASES) != length(lettersCDS)),
           text = "CDS is not fully correct. Please provide correct CDS."
         )
         
@@ -297,7 +286,7 @@ server <- function(input, output, session) {
       
       feedbackWarning(
         inputId = "exon",
-        condition = str_trim(input$exon) == "",
+        show = str_trim(input$exon) == "",
         text = "Exon sequence cannot be blank. Please enter the exon sequence."
       )
       
@@ -310,7 +299,7 @@ server <- function(input, output, session) {
       
       feedbackSuccess(
         inputId = "exon",
-        condition = sum(lettersExon %in% DNA_BASES) == length(lettersExon),
+        show = sum(lettersExon %in% DNA_BASES) == length(lettersExon),
         text = " "
       )
       
@@ -319,7 +308,7 @@ server <- function(input, output, session) {
         
         feedbackWarning(
           inputId = "exon",
-          condition = sum(lettersExon %in% DNA_BASES) != length(lettersExon),
+          show = sum(lettersExon %in% DNA_BASES) != length(lettersExon),
           text = "Exon sequence contains non-DNA characters. Please provide correct exon sequence."
         )
         
@@ -340,7 +329,7 @@ server <- function(input, output, session) {
       
       feedbackSuccess(
         inputId = "intron5",
-        condition = sum(lettersIntr5 %in% DNA_BASES) == length(lettersIntr5),
+        show = sum(lettersIntr5 %in% DNA_BASES) == length(lettersIntr5),
         text = " "
       )
       
@@ -349,7 +338,7 @@ server <- function(input, output, session) {
         
         feedbackWarning(
           inputId = "intron5",
-          condition = sum(lettersIntr5 %in% DNA_BASES) != length(lettersIntr5),
+          show = sum(lettersIntr5 %in% DNA_BASES) != length(lettersIntr5),
           text = "Your 5' flanking sequence contains non-DNA characters. Please provide a correct 5' flanking sequence."
         )
         
@@ -370,7 +359,7 @@ server <- function(input, output, session) {
       
       feedbackSuccess(
         inputId = "intron3",
-        condition = sum(lettersIntr3 %in% DNA_BASES) == length(lettersIntr3),
+        show = sum(lettersIntr3 %in% DNA_BASES) == length(lettersIntr3),
         text = " "
       )
       
@@ -379,7 +368,7 @@ server <- function(input, output, session) {
         
         feedbackWarning(
           inputId = "intron3",
-          condition = sum(lettersIntr3 %in% DNA_BASES) != length(lettersIntr3),
+          show = sum(lettersIntr3 %in% DNA_BASES) != length(lettersIntr3),
           text = "Your 3' flanking sequence contains non-DNA characters. Please provide a correct 3' flanking sequence."
         )
         
@@ -395,7 +384,7 @@ server <- function(input, output, session) {
       
       feedbackWarning(
         inputId = "forw_primer",
-        condition = str_trim(input$forw_primer) == "",
+        show = str_trim(input$forw_primer) == "",
         text = "Forward primer sequence cannot be blank. Please enter the forward primer sequence."
       )
       
@@ -408,7 +397,7 @@ server <- function(input, output, session) {
       
       feedbackSuccess(
         inputId = "forw_primer",
-        condition = (sum(lettersForw %in% DNA_BASES) == length(lettersForw)) & nchar(forw_primer_input) >= 15,
+        show = (sum(lettersForw %in% DNA_BASES) == length(lettersForw)) & nchar(forw_primer_input) >= 15,
         text = " "
       )
       
@@ -417,7 +406,7 @@ server <- function(input, output, session) {
         
         feedbackWarning(
           inputId = "forw_primer",
-          condition = sum(lettersForw %in% DNA_BASES) != length(lettersForw),
+          show = sum(lettersForw %in% DNA_BASES) != length(lettersForw),
           text = "Your forward primer contains non-DNA characters. Please provide a correct forward primer sequence."
         )
         
@@ -428,7 +417,7 @@ server <- function(input, output, session) {
         
         feedbackWarning(
           inputId = "forw_primer",
-          condition = nchar(forw_primer_input) < 15,
+          show = nchar(forw_primer_input) < 15,
           text = "Make sure your forward primer is at least 15 nucleotides long."
         )
         
@@ -446,7 +435,7 @@ server <- function(input, output, session) {
       
       feedbackWarning(
         inputId = "rev_primer",
-        condition = str_trim(input$rev_primer) == "",
+        show = str_trim(input$rev_primer) == "",
         text = "Reverse primer sequence cannot be blank. Please enter the reverse primer sequence."
       )
       
@@ -459,7 +448,7 @@ server <- function(input, output, session) {
       
       feedbackSuccess(
         inputId = "rev_primer",
-        condition = (sum(lettersRev %in% DNA_BASES) == length(lettersRev)) & nchar(rev_primer_input) >= 15,
+        show = (sum(lettersRev %in% DNA_BASES) == length(lettersRev)) & nchar(rev_primer_input) >= 15,
         text = " "
       )
       
@@ -468,7 +457,7 @@ server <- function(input, output, session) {
         
         feedbackWarning(
           inputId = "rev_primer",
-          condition = sum(lettersRev %in% DNA_BASES) != length(lettersRev),
+          show = sum(lettersRev %in% DNA_BASES) != length(lettersRev),
           text = "Your reverse primer contains non-DNA characters. Please provide a correct reverse primer sequence."
         )
         
@@ -479,7 +468,7 @@ server <- function(input, output, session) {
         
         feedbackWarning(
           inputId = "rev_primer",
-          condition = nchar(rev_primer_input) < 15,
+          show = nchar(rev_primer_input) < 15,
           text = "Make sure your reverse primer is at least 15 nucleotides long."
         )
         
@@ -497,7 +486,7 @@ server <- function(input, output, session) {
       
       feedbackWarning(
         inputId = "sgRNA_seq",
-        condition = str_trim(input$sgRNA_seq) == "",
+        show = str_trim(input$sgRNA_seq) == "",
         text = "sgRNA sequence cannot be blank. Please enter an sgRNA sequence."
       )
     }
@@ -509,7 +498,7 @@ server <- function(input, output, session) {
       
       feedbackSuccess(
         inputId = "sgRNA_seq",
-        condition = (sum(lettersSgRNA %in% DNA_BASES) == length(lettersSgRNA)) & nchar(sgRNA_input) >= 18,
+        show = (sum(lettersSgRNA %in% DNA_BASES) == length(lettersSgRNA)) & nchar(sgRNA_input) >= 18,
         text = " "
       )
       
@@ -518,7 +507,7 @@ server <- function(input, output, session) {
         
         feedbackWarning(
           inputId = "sgRNA_seq",
-          condition = sum(lettersSgRNA %in% DNA_BASES) != length(lettersSgRNA),
+          show = sum(lettersSgRNA %in% DNA_BASES) != length(lettersSgRNA),
           text = "Your sgRNA sequence contains non-DNA characters. Please provide a correct sgRNA sequence."
         )
         
@@ -529,7 +518,7 @@ server <- function(input, output, session) {
         
         feedbackWarning(
           inputId = "sgRNA_seq",
-          condition = nchar(sgRNA_input) < 18,
+          show = nchar(sgRNA_input) < 18,
           text = "Make sure your sgRNA sequence is at least 18 nucleotides long."
         )
         
@@ -973,6 +962,57 @@ server <- function(input, output, session) {
     paste(round(leftFragmentSize/1000, 2), "kb + ", round(rightFragmentSize/1000, 2),"kb", sep="")
   }
   
+  # identify codons that can replace the current codon if that codon overlaps
+  # two exons
+  find_overlapCodon_mutantCodons <- function(codon, phase, targetAA, GENETIC_CODE, REV_GENETIC_CODE){
+    
+    # 1. get all codons for the target amino acid, targetAA
+    target_codons <- REV_GENETIC_CODE[[targetAA]]
+    
+    # 2. Find start and end positions for the part of the codon that overlaps the exon
+    if(phase == 1){
+      
+      start = 1
+      end = 1
+      
+    } else if(phase == 2){
+      
+      start = 1
+      end = 2
+      
+    } else if(phase == -1){
+      
+      start = 3
+      end = 3
+      
+    } else if(phase == -2){
+      
+      start = 2
+      end = 3
+    }
+    
+    
+    #	iterate over targetAA codons, replace a piece in the current codon with the same piece
+    # from a targetAA codon
+    start_vec <- rep(start, length(target_codons))
+    end_vec <- rep(end, length(target_codons))
+    codon_vec <- rep(codon, length(target_codons))
+    
+    str_sub(codon_vec, start_vec, end_vec)  <- str_sub(target_codons, start_vec, end_vec)
+    
+    # verify which codons encode the desired amino acid and add them to the vector
+    output <- c()
+    
+    for(new_codon in codon_vec){
+      if(GENETIC_CODE[[new_codon]] == targetAA){
+        output <- c(output, substr(new_codon, start, end))
+      }
+      
+    }
+    
+    # return the vector of codons
+    unique(output)	
+  }
   
   
   # seqInputs function which processes the input and stores them in 
@@ -987,7 +1027,7 @@ server <- function(input, output, session) {
     mutString <- str_trim(input$Mutation)
     
     shiny::validate(need( mutString != "", "Mutation name cannot be blank. Please enter a mutation."))    
-    shiny::validate(need(str_detect(mutString, "^[:alpha:]\\d{1,5}[a-zA-Z*]$"), "Mutation must have the pattern A123C or A123*, * - a stop codon. Please correct this." ))
+    shiny::validate(need(str_detect(mutString, "^[ARNDCEQGHILKMFPSTWYVarndceqghilkmfpstwyv]\\d{1,5}[ARNDCEQGHILKMFPSTWYVarndceqghilkmfpstwyv*]$"), "Mutation must have the pattern A123C or A123*, * - a stop codon. Please correct this." ))
     
     # if OK, store codon number
     codonNum <- as.integer(substr(mutString, 2, nchar(mutString)-1))
@@ -996,14 +1036,18 @@ server <- function(input, output, session) {
     userData <- list()
     
     
-    ##########################################################
-    # retrieve the data from BioMart or from manual text input
+    #######################################################################
+    # retrieve the data from Ensemble REST API or from manual text input
+    #######################################################################
     
-    # automatic retrieval of data if all required inputs have been provided
-    if(input$species != "" & input$gene != "" & input$transcriptID != "" ){
+    #######################################################################
+    #   automatic retrieval of data if all required inputs have been provided
+    ########################################################################
+    if(input$gene != "" & input$transcriptID != "" ){
       
       # get the basic input information
       trID <- str_trim(input$transcriptID)
+      trID <- unlist(str_split(trID, '\\.'))[1]
       
       # shiny::validate the Ensembl transcript ID
       shiny::validate( need(str_detect(trID, "ENS[A-Z]{0,3}T[0-9]{11}"), "Please enter a valid Ensembl Transcript ID") )
@@ -1029,13 +1073,58 @@ server <- function(input, output, session) {
       
       ext <- "/sequence/id"
       
-      exons_search_string <- paste0('{ "ids" : [', paste(shQuote(exonIDs, type="cmd"), collapse=", "), '] }')
-      exons_search_string
-      
-      r <- POST(paste(server, ext, sep = ""), content_type("application/json"), accept("application/json"), body = exons_search_string)
-      content(r)
-      
-      exon_seqs0 <-  unlist(fromJSON(toJSON(content(r)))$seq)
+      if(length(exonIDs) > 50){
+        
+        # start an empty vector for output
+        exon_seqs0 <- c()
+        
+        # iterate retrieval
+        n_requests <- as.integer(length(exonIDs)/50)
+        
+        # do full maximum requests 
+        for(k in 1:n_requests){
+          startIdx <- (k-1)*50 + 1
+          endIdx <- k*50
+          
+          currIDs <- exonIDs[startIdx : endIdx]
+          
+          exons_search_string <- paste0('{ "ids" : [', paste(shQuote(currIDs, type="cmd"), collapse=", "), '] }')
+          exons_search_string
+          
+          r <- POST(paste(server, ext, sep = ""), content_type("application/json"), accept("application/json"), body = exons_search_string)
+          content(r)
+          
+          result <-  unlist(fromJSON(toJSON(content(r)))$seq)
+          exon_seqs0 <- c(exon_seqs0, result)
+          
+        } # end of for loop
+        
+        # get the rest of exonIDs
+        startIdx <- n_requests*50 + 1
+        endIdx <- length(exonIDs)
+        
+        currIDs <- exonIDs[startIdx : endIdx]
+        
+        exons_search_string <- paste0('{ "ids" : [', paste(shQuote(currIDs, type="cmd"), collapse=", "), '] }')
+        exons_search_string
+        
+        r <- POST(paste(server, ext, sep = ""), content_type("application/json"), accept("application/json"), body = exons_search_string)
+        content(r)
+        
+        result <-  unlist(fromJSON(toJSON(content(r)))$seq)
+        exon_seqs0 <- c(exon_seqs0, result)
+        
+      } else{
+        
+        exons_search_string <- paste0('{ "ids" : [', paste(shQuote(exonIDs, type="cmd"), collapse=", "), '] }')
+        exons_search_string
+        
+        r <- POST(paste(server, ext, sep = ""), content_type("application/json"), accept("application/json"), body = exons_search_string)
+        content(r)
+        
+        exon_seqs0 <-  unlist(fromJSON(toJSON(content(r)))$seq)
+        
+      }
       
       #######################################
       # obtain unspliced genomic sequence for the transcript
@@ -1069,10 +1158,30 @@ server <- function(input, output, session) {
       # step 1 algorithm:
       # 1. match all exons to the cDNA to get their coordinates within the cDNA
       exon_cDNA_matches <- str_locate_all(CDNA_seq, exon_seqs0) 
-      length(exon_cDNA_matches)
       
       # iterate over the whole list and store starts and ends sep
-      df <- data.frame(matrix(unlist(exon_cDNA_matches), nrow=length(exon_cDNA_matches), byrow=T))
+      exon_coords <- c()
+      
+      # iterate over all exon matches
+      for(j in 1:length(exon_cDNA_matches)){
+        
+        if(nrow(exon_cDNA_matches[[j]]) == 1){
+          exon_coords <- c(exon_coords, as.vector(exon_cDNA_matches[[j]]) )
+        } else{
+          
+          # check all rows and test each one to be continuation of cDNA
+          for(m in 1: nrow(exon_cDNA_matches[[j]])){
+            
+            if(as.integer(exon_cDNA_matches[[j]][m,'start']) == (exon_coords[-1] + 1) ){
+              exon_coords <- c(exon_coords, as.vector(exon_cDNA_matches[[j]][m,]) )
+            }
+            
+          }# end of iteration of specific exon matches
+        } # end of else
+      } # end of list iteration
+      
+      
+      df <- data.frame(matrix(exon_coords, nrow=length(exon_cDNA_matches), byrow=T))
       
       exon_seqs <- data.frame(gene_exon = exon_seqs0, start = df$X1, end = df$X2) 
       
@@ -1080,46 +1189,236 @@ server <- function(input, output, session) {
       #    mutation codon coordinate based on this match.
       CDS_cDNA_match <- str_locate(CDNA_seq, substr(CDS_input, 1, 3*codonNum))
       codon_end_coord <- as.integer(CDS_cDNA_match[1,]["end"])
-      
+      codon_start_coord <- codon_end_coord - 2 
       
       # 3. Identify the exon that contains the mutation based on the above matches.
-      target_exon_df <- subset(exon_seqs, exon_seqs$start < codon_end_coord  & exon_seqs$end >= codon_end_coord)
-      exon_input <- toupper(target_exon_df$gene_exon)
       
-      # 4. Match the target exon to the unspliced transcript sequence and extract 5' and 3' intron sequences.
-      target_unspl_match <- str_locate(unspl_transcript, toupper(exon_input))
+      # condition 1: codon is fully within the exon
       
-      target_exon_unspl_start <- as.integer(target_unspl_match[1,1])
-      target_exon_unspl_end <- as.integer(target_unspl_match[1,2])
+      # try extracting a single exon
+      target_exon_df <- subset(exon_seqs, (codon_start_coord >= exon_seqs$start) & (codon_end_coord <= exon_seqs$end) )
       
-      # 5. Store all the results of this algorithm in variables and the list for retrieval.
-      
-      # test that there is enough sequence on the 5' side
-      if(target_exon_unspl_start >= 301){
+      # check if this has worked
+      if(nrow(target_exon_df) == 1){
+        # the target exon has been chosen
+        exon_input <- toupper(target_exon_df$gene_exon)
         
-        intron5 <- substr(unspl_transcript, target_exon_unspl_start - 300, target_exon_unspl_start-1)
+        # 4. Match the target exon to the unspliced transcript sequence and extract 5' and 3' intron sequences.
+        target_unspl_match <- str_locate(unspl_transcript, toupper(exon_input))
         
-      } else{
+        target_exon_unspl_start <- as.integer(target_unspl_match[1,1])
+        target_exon_unspl_end <- as.integer(target_unspl_match[1,2])
         
-        # take the shorter 5' intron
-        intron5 <- substr(unspl_transcript, 1, target_exon_unspl_start-1)
+        # 5. Store all the results of this algorithm in variables and the list for retrieval.
+        
+        # test that there is enough sequence on the 5' side
+        if(target_exon_unspl_start >= 701){
+          
+          intron5 <- substr(unspl_transcript, target_exon_unspl_start - 700, target_exon_unspl_start-1)
+          
+        } else{
+          
+          # take the shorter 5' intron
+          intron5 <- substr(unspl_transcript, 1, target_exon_unspl_start-1)
+        }
+        
+        # test if there is enough sequence on the 3' side
+        if(nchar(unspl_transcript) >= target_exon_unspl_end + 700 ){
+          
+          intron3 <- substr(unspl_transcript, target_exon_unspl_end + 1, target_exon_unspl_end + 700)
+          
+        }else{
+          # retrieve as much as possible of the gene sequence
+          intron3 <- substr(unspl_transcript, target_exon_unspl_end + 1, nchar(unspl_transcript))
+        }
+        
+        # store the results of intron/flanking sequence selection 
+        intron5_input <- toupper(intron5)
+        intron3_input <- toupper(intron3)
+        
+        
+        
+      } else {
+        
+        # attempt to extract two exons with codon pieces having +1 and -2 phases
+        target_exon_df <- subset(exon_seqs, codon_start_coord == exon_seqs$end | exon_seqs$start == ( codon_start_coord + 1) )
+        
+        if(nrow(target_exon_df) == 2){
+          # assign phases of the codon on each side
+          phase1 = 1
+          phase2 = -2
+          
+        } else{
+          # attempt to extract two exons with codon pieces having +2 and -1 phases
+          target_exon_df <- subset(exon_seqs, exon_seqs$start == codon_end_coord | exon_seqs$end == (codon_end_coord - 1) )
+          
+          # in case the second attempt at extracting exons worked, assign phases
+          if(nrow(target_exon_df) == 2){
+            phase1 = 2
+            phase2 = -1
+          }
+          
+        } # end of the 2nd option to extract overlapping exons
+        
+      }# end of 2-exon extraction procedures
+      
+      # test if the program selected 2 exons, 1 exon or none
+      if(nrow(target_exon_df) == 2){
+        ###########################################
+        # algorithm for selecting one of the exons
+        ###########################################
+        
+        # obtain primers 
+        # retrieve forward primer and reverse primers and shiny::validate them
+        forw_primer <- toupper(str_trim(input$forw_primer))
+        rev_primer <- toupper(str_trim(input$rev_primer))
+        
+        # make a reverse complement of the reverse primer
+        rc_rev_primer <- as.character(reverseComplement(DNAString(rev_primer)))            
+        
+        # obtain sgRNA
+        sgRNA <- toupper(str_trim(input$sgRNA_seq))        
+        
+        
+        # 1. Generate flanking sequences to both candidate exons
+        for(i in 1:2){
+          # candidate exon
+          cand_exon_input <- toupper(as.character(target_exon_df[i,]$gene_exon))
+          
+          # Match the target exon to the unspliced transcript sequence and extract 5' and 3' intron sequences.
+          target_unspl_match <- str_locate(unspl_transcript, toupper(cand_exon_input))
+          
+          target_exon_unspl_start <- as.integer(target_unspl_match[1,1])
+          target_exon_unspl_end <- as.integer(target_unspl_match[1,2])
+          
+          # Store all the results of this algorithm in variables and the list for retrieval.
+          
+          # test that there is enough sequence on the 5' side
+          if(target_exon_unspl_start >= 701){
+            
+            intron5 <- substr(unspl_transcript, target_exon_unspl_start - 700, target_exon_unspl_start-1)
+            
+          } else{
+            
+            # take the shorter 5' intron
+            intron5 <- substr(unspl_transcript, 1, target_exon_unspl_start-1)
+          }
+          
+          # test if there is enough sequence on the 3' side
+          if(nchar(unspl_transcript) >= target_exon_unspl_end + 700 ){
+            
+            intron3 <- substr(unspl_transcript, target_exon_unspl_end + 1, target_exon_unspl_end + 700)
+            
+          }else{
+            # retrieve as much as possible of the gene sequence
+            intron3 <- substr(unspl_transcript, target_exon_unspl_end + 1, nchar(unspl_transcript))
+          }
+          
+          # store the results of intron/flanking sequence selection 
+          cand_intron5_input <- toupper(intron5)
+          cand_intron3_input <- toupper(intron3)
+          
+          # generate genomicString
+          cand_genomicString <- paste(cand_intron5_input, cand_exon_input, cand_intron3_input, sep="")            
+          
+          # match sgRNA to the current genomic
+          if(input$oriented == "sense"){
+            
+            # align sgRNA and genomic region when they are in the same orientation
+            align_sgRNA <- matchPattern(DNAString(sgRNA), cand_genomicString, max.mismatch=2)
+            start_sgR  <- start(align_sgRNA)
+            end_sgR  <- end(align_sgRNA)
+            
+            # reverse sgRNA orientation            
+          } else{
+            sgRNA_DS <- DNAString(sgRNA)
+            sgRNA_rc <- reverseComplement(sgRNA_DS)
+            
+            # align sgRNA and genomic region when they are in the opposite orientations
+            align_sgRNA <- matchPattern(sgRNA_rc, cand_genomicString, max.mismatch=2)
+            start_sgR  <- start(align_sgRNA)
+            end_sgR  <- end(align_sgRNA)
+          }
+          
+          # sgRNA mid point
+          sgRNA_mid_coord <- (start_sgR + end_sgR)/2
+          
+          if(length(sgRNA_mid_coord) > 0){
+            
+            if(i == 1){
+              # codon is at the end of the exon
+              sgRNA_codon_dist <- abs(sgRNA_mid_coord - nchar(cand_intron5_input) - nchar(cand_exon_input))
+              
+            } else{
+              # codon is at the start of the exon
+              sgRNA_codon_dist <- abs(sgRNA_mid_coord - nchar(cand_intron5_input))
+            }
+            
+          } else{
+            # set the distance to a high value because the sgRNA is not found in the sequence
+            sgRNA_codon_dist <-  1000
+          }
+          
+          
+          # check if primers match the genomicString sequence
+          if( (countPattern( DNAString(forw_primer), DNAString(toupper(cand_genomicString)), max.mismatch=2) == 1) & 
+              (countPattern( DNAString(rc_rev_primer), DNAString(toupper(cand_genomicString)), max.mismatch=2) == 1) &
+              (sgRNA_codon_dist < 40)  ){
+            
+            # assign candidate sequences to final variables
+            exon_input <- cand_exon_input
+            intron5_input <- cand_intron5_input
+            intron3_input <- cand_intron3_input
+            
+            correct_i <- i
+          }
+          
+        } # end of for loop for candidate exons
+        
+        ##################################################        
+        # Check mutability of the exon-codon combination
+        
+        # 
+        # 1. Collect relevant information for mutating the target codon on each side of the overlap
+        
+        codon = substr(CDS_input, 3*codonNum-2, 3*codonNum )
+        
+        # determine the phase
+        if(correct_i == 1){
+          phase <- phase1
+        }else{
+          phase <- phase2
+        }
+        
+        
+        # targetAA
+        targetAA <- substr(mutString, nchar(mutString), nchar(mutString))
+        
+        phase_results <- find_overlapCodon_mutantCodons(codon, phase, targetAA, GENETIC_CODE, REV_GENETIC_CODE)
+        
+        
+        ########################################################
+        # run validate statement that this codon is not mutable
+        ########################################################
+        shiny::validate(need( length(phase_results) > 0, "This codon is not mutable by point mutations. Larger DNA constructs will be needed."))        
+        
+        
+        
+      } else if(nrow(target_exon_df) == 1){
+        # no need to take further steps
+        
+      } else {
+        
+        # raise an error if no exons have been found
+        shiny::validate(need( nrow(target_exon_df) > 0, "No exons have been found."))
       }
       
-      # test if there is enough sequence on the 3' side
-      if(nchar(unspl_transcript) >= target_exon_unspl_end + 300 ){
-        
-        intron3 <- substr(unspl_transcript, target_exon_unspl_end + 1, target_exon_unspl_end + 300)
-        
-      }else{
-        # retrieve as much as possible of the gene sequence
-        intron3 <- substr(unspl_transcript, target_exon_unspl_end + 1, nchar(unspl_transcript))
-      }
       
-      # store the results of intron/flanking sequence selection 
-      intron5_input <- toupper(intron5)
-      intron3_input <- toupper(intron3)
       
+      ####################################################################      
       # manual data input
+      ####################################################################
+      
     } else{
       
       # extract the sequences from input
@@ -1127,6 +1426,9 @@ server <- function(input, output, session) {
       exon_input <- toupper(input$exon)
       intron5_input <- toupper(input$intron5)
       intron3_input <- toupper(input$intron3)
+      
+      # initiate phase variable to prevent errors
+      phase = 0
       
       ## shiny::validate the input sequences
       
@@ -1184,7 +1486,6 @@ server <- function(input, output, session) {
       
     }# end of else for manual data input
     
-    
     # generate a genomicString variable
     genomicString <- paste(intron5_input, exon_input, intron3_input, sep="")
     
@@ -1192,33 +1493,37 @@ server <- function(input, output, session) {
     forw_primer <- toupper(str_trim(input$forw_primer))
     rev_primer <- toupper(str_trim(input$rev_primer))
     
+    # make a reverse complement of the reverse primer
+    rc_rev_primer <- as.character(reverseComplement(DNAString(rev_primer)))
+    
     # empty primer fields
     shiny::validate(need( forw_primer != "", "Forward primer sequence cannot be blank. Please enter a forward primer sequence"))
     shiny::validate(need( rev_primer != "", "Reverse primer sequence cannot be blank. Please enter a reverse primer sequence"))
     
     # matching test for the forward primer
-    shiny::validate( need(str_detect(genomicString, forw_primer), "Please make sure your forward primer matches precisely either your flanking sequence or exon.") )
+    shiny::validate( need( countPattern( DNAString(forw_primer), DNAString(toupper(genomicString)), max.mismatch=2) == 1, "Please make sure your forward primer matches either your flanking sequence or exon (up to 2 mismatches).") )
     
     # make a reverse complement of the reverse primer
     rc_rev_primer <- as.character(reverseComplement(DNAString(rev_primer)))
     
     # matching test for the reverse primer
-    shiny::validate( need(str_detect(genomicString, rc_rev_primer), "Please make sure your reverse primer matches precisely either your exon or flanking sequence.") )
+    shiny::validate( need( countPattern( DNAString(rc_rev_primer), DNAString(toupper(genomicString)), max.mismatch=2) == 1, "Please make sure your reverse primer matches either your exon or flanking sequence (up to 2 mismatches).") )
     
     # retrieve the input sgRNA and validate it with respect to the genomic string
     # this would also validate the orientation of the sgRNA
-    
     
     sgRNA <- toupper(str_trim(input$sgRNA_seq))
     shiny::validate(need(sgRNA != "", "sgRNA sequence cannot be blank. Please enter the a sgRNA sequence"))
     
     if(input$oriented == "sense"){
-      shiny::validate( need(str_detect(genomicString, sgRNA), "Please make sure your sgRNA matches your sequence precisely and the orientation is correct.") )
+      shiny::validate( need(countPattern( DNAString(sgRNA), DNAString(toupper(genomicString)), max.mismatch=2) == 1, "Please ensure your sgRNA matches your sequence (up to 2 mismatches) in the correct orientation.") )
+      
+      
     } else{
       
       rc_sgRNA <- as.character(reverseComplement(DNAString(sgRNA)))
       
-      shiny::validate( need(str_detect(genomicString, rc_sgRNA), "Please make sure your sgRNA matches your sequence precisely and the orientation is correct.") )
+      shiny::validate( need( countPattern( DNAString(rc_sgRNA), DNAString(toupper(genomicString)), max.mismatch=2) == 1, "Please ensure your sgRNA matches your sequence (up to 2 mismatches) in the correct orientation.") )
       
     }
     
@@ -1231,7 +1536,7 @@ server <- function(input, output, session) {
     if(input$oriented == "sense"){
       
       # align sgRNA and genomic region when they are in the same orientation
-      align_sgRNA <- matchPattern(DNAString(sgRNA), genomicString)
+      align_sgRNA <- matchPattern(DNAString(sgRNA), genomicString, max.mismatch=2)
       start_sgR  <- start(align_sgRNA)
       end_sgR  <- end(align_sgRNA)
       
@@ -1241,7 +1546,7 @@ server <- function(input, output, session) {
       sgRNA_rc <- reverseComplement(sgRNA_DS)
       
       # align sgRNA and genomic region when they are in the opposite orientations
-      align_sgRNA <- matchPattern(sgRNA_rc, genomicString)
+      align_sgRNA <- matchPattern(sgRNA_rc, genomicString, max.mismatch=2)
       start_sgR  <- start(align_sgRNA)
       end_sgR  <- end(align_sgRNA)
       
@@ -1322,10 +1627,47 @@ server <- function(input, output, session) {
     # perform matching of the exon to the CDS and update the codon position within the exon
     # alignment is a more generic version of solving the problem that exons 
     # may have alternative nucleotides
-    alignment <- matchPattern(exon, CDS)
-    d1 <- start(alignment)
+    mat <- nucleotideSubstitutionMatrix(match = 1, mismatch = -3, baseOnly = TRUE)
+    alignment <- pairwiseAlignment(exon, CDS, type = "overlap", substitutionMatrix = mat,
+                                   gapOpening = 3, gapExtension = 2)
     
-    exonCodonPos <- codonCDS_pos - d1+1
+    #define the coordinates for the exon within the CDS
+    exonStartCDS <- start(subject(alignment))
+    exonEndCDS <- end(subject(alignment))
+    
+    # test if the codon is fully inside the exon
+    if((codonCDS_pos[1] >= exonStartCDS) & (codonCDS_pos[2] <= exonEndCDS)  ){
+      
+      # calculate the position of the codon inside an exon by the usual procedure
+      exonCodonPos <- codonCDS_pos - exonStartCDS +1      
+      
+      codonPhase <- 0
+      
+    }else{ # the target codon overlaps two exons and the current target exon includes only a part of the codon
+      
+      # codon overlaps the exon on the right
+      if(codonCDS_pos[1] < exonStartCDS){
+        
+        # calculate the position of the codon inside an exon
+        exonCodonPos <- c(exonStartCDS, codonCDS_pos[2])
+        exonCodonPos <- exonCodonPos  - exonStartCDS + 1
+        
+        # calculate the codon phase for this position of the codon
+        codonPhase <- exonStartCDS - codonCDS_pos[2] - 1
+      }
+      
+      # codon overlaps the exon on the left
+      if(codonCDS_pos[2] > exonEndCDS){
+        
+        # calculate the position of the codon inside an exon
+        exonCodonPos <- c(codonCDS_pos[1], exonEndCDS)
+        exonCodonPos <- exonCodonPos - exonStartCDS + 1
+        
+        # calculate the codon phase for this position of the codon
+        codonPhase <- exonEndCDS - codonCDS_pos[1] + 1
+      }
+      
+    } # end of else for codon overlapping two exons
     
     ## generate the local genomic string
     
@@ -1336,11 +1678,14 @@ server <- function(input, output, session) {
     genomicString <- paste(tolower(intr5), toupper(exon), tolower(intr3), sep = "")
     
     # 0. sequence
-    coords[["sequence"]] = genomicString
-    coords[["exon"]] = c(nchar(intr5) + 1, nchar(intr5) + nchar(exon))
+    coords[["sequence"]] <-  genomicString
+    coords[["exon"]] <-  c(nchar(intr5) + 1, nchar(intr5) + nchar(exon))
     
     # 1. Codon
-    coords[["codon"]] = genomicCodonPos
+    coords[["codon"]] <-  genomicCodonPos
+    
+    # phase of the codon
+    coords[["codon_phase"]] <- codonPhase
     
     ## locate the sgRNA spacer
     sgRNA <- input$sgRNA_seq
@@ -1349,7 +1694,7 @@ server <- function(input, output, session) {
     if(input$oriented == "sense"){
       
       # align sgRNA and genomic region when they are in the same orientation
-      align_sgRNA <- matchPattern(DNAString(sgRNA), genomicString)
+      align_sgRNA <- matchPattern(DNAString(toupper(sgRNA)), toupper(genomicString), max.mismatch=2)
       start_sgR  <- start(align_sgRNA)
       end_sgR  <- end(align_sgRNA)
       
@@ -1359,7 +1704,7 @@ server <- function(input, output, session) {
       sgRNA_rc <- reverseComplement(sgRNA_DS)
       
       # align sgRNA and genomic region when they are in the opposite orientations
-      align_sgRNA <- matchPattern(sgRNA_rc, toupper(genomicString))
+      align_sgRNA <- matchPattern(DNAString(toupper(sgRNA_rc)), toupper(genomicString), max.mismatch=2)
       start_sgR  <- start(align_sgRNA)
       end_sgR  <- end(align_sgRNA)
       
@@ -1381,14 +1726,14 @@ server <- function(input, output, session) {
     
     # map forward primer to the genomic string
     # toupper function is used 
-    align_for_primer <- matchPattern(DNAString(toupper(forw_primer)), toupper(genomicString))
+    align_for_primer <- matchPattern(DNAString(toupper(forw_primer)), toupper(genomicString), max.mismatch=2)
     start_for  <- start(align_for_primer)
     end_for  <- end(align_for_primer)
     
     
     # map reverse primer to the genomic string
     rev_primer <- reverseComplement(DNAString(toupper(rev_primer)))
-    align_rev_primer <- matchPattern(rev_primer, DNAString(toupper(genomicString)))
+    align_rev_primer <- matchPattern(rev_primer, DNAString(toupper(genomicString)), max.mismatch=2)
     start_rev  <- start(align_rev_primer)
     end_rev  <- end(align_rev_primer)
     
@@ -1531,6 +1876,10 @@ server <- function(input, output, session) {
   
   # function to label nucleotide differences in knock-in detecting primers
   markMutatedRed <- function(mutant_primer, wt_primer){
+    # convert to the upper case
+    mutant_primer <- toupper(mutant_primer)
+    wt_primer <- toupper(wt_primer)
+    
     # get coordinates of differences
     diffs <-  sort(getPrimerDiffs(mutant_primer, wt_primer))
     
@@ -1569,10 +1918,10 @@ server <- function(input, output, session) {
                                "<td>", markMutatedRed(forward_primers[["mut_forw_primer"]]$sequence, forward_primers[["wt_forw_primer"]]$sequence),"</td>", 
                                "<td>", round(forward_primers[["mut_forw_primer"]]$Tm, 2), "</td>", "</tr>",
                                "<tr><td>", paste0(gene, '_WT_for'), "</td>",
-                               "<td>", forward_primers[["wt_forw_primer"]]$sequence,"</td>", 
+                               "<td>", toupper(forward_primers[["wt_forw_primer"]]$sequence),"</td>", 
                                "<td>", round(forward_primers[["wt_forw_primer"]]$Tm, 2), "</td>", "</tr>",
                                "<tr><td>",paste0(gene,'_common_rev'), "</td>",
-                               "<td>", forward_primers[["common_rev_primer"]]$sequence,"</td>", 
+                               "<td>", toupper(forward_primers[["common_rev_primer"]]$sequence),"</td>", 
                                "<td>", round(forward_primers[["common_rev_primer"]]$Tm, 2), "</td>", "</tr>",
                                "</table>", sep = "")
     
@@ -1581,13 +1930,13 @@ server <- function(input, output, session) {
     
     rev_primer_table <- "<table style='width:90%; font-size: 15px;'><caption style='color:blue'>Reverse AS-PCR primers</caption><tr><th>Primer</th><th>Sequence</th><th>Tm</th></tr>"
     rev_primer_table <- paste(rev_primer_table, "<tr><td>", paste0(gene, '_common_for'), "</td>",
-                              "<td>", reverse_primers[["common_forw_primer"]]$sequence,"</td>", 
+                              "<td>",toupper(reverse_primers[["common_forw_primer"]]$sequence),"</td>", 
                               "<td>", round(reverse_primers[["common_forw_primer"]]$Tm, 2), "</td></tr>",
                               "<tr><td>",paste0(gene, '_', Mutation, '_rev'), "</td>", 
                               "<td>", markMutatedRed(reverse_primers[["mut_rev_primer"]]$sequence, reverse_primers[["wt_rev_primer"]]$sequence),"</td>", 
                               "<td>", round(reverse_primers[["mut_rev_primer"]]$Tm, 2), "</td></tr>",
                               "<tr><td>", paste0(gene, '_WT_rev'), "</td>",
-                              "<td>", reverse_primers[["wt_rev_primer"]]$sequence,"</td>", 
+                              "<td>", toupper(reverse_primers[["wt_rev_primer"]]$sequence),"</td>", 
                               "<td>", round(reverse_primers[["wt_rev_primer"]]$Tm, 2), "</td></tr>",
                               "</table>", sep = "")
     
@@ -1636,15 +1985,15 @@ server <- function(input, output, session) {
     # make table caption and header
     forw_primer_table <- paste0("Forward AS-PCR primers\n", "Primer\tSequence\tTm\n")
     
-    forw_primer_table <- paste(forw_primer_table, paste0(gene,'_', Mutation, '_for'), "\t", forward_primers[["mut_forw_primer"]]$sequence, "\t", round(forward_primers[["mut_forw_primer"]]$Tm, 2), "\n",
-                               paste0(gene, '_WT_for'), "\t", forward_primers[["wt_forw_primer"]]$sequence, "\t", round(forward_primers[["wt_forw_primer"]]$Tm, 2), "\n",
-                               paste0(gene,'_common_rev'), "\t", forward_primers[["common_rev_primer"]]$sequence, "\t", round(forward_primers[["common_rev_primer"]]$Tm, 2), "\n\n", sep = "")
+    forw_primer_table <- paste(forw_primer_table, paste0(gene,'_', Mutation, '_for'), "\t", toupper(forward_primers[["mut_forw_primer"]]$sequence), "\t", round(forward_primers[["mut_forw_primer"]]$Tm, 2), "\n",
+                               paste0(gene, '_WT_for'), "\t", toupper(forward_primers[["wt_forw_primer"]]$sequence), "\t", round(forward_primers[["wt_forw_primer"]]$Tm, 2), "\n",
+                               paste0(gene,'_common_rev'), "\t", toupper(forward_primers[["common_rev_primer"]]$sequence), "\t", round(forward_primers[["common_rev_primer"]]$Tm, 2), "\n\n", sep = "")
     
     rev_primer_table <- paste0("Reverse AS-PCR primers\n", "Primer\tSequence\tTm\n")
     
-    rev_primer_table <- paste(rev_primer_table, paste0(gene, '_common_for'), "\t", reverse_primers[["common_forw_primer"]]$sequence,"\t", round(reverse_primers[["common_forw_primer"]]$Tm, 2), "\n",
-                              paste0(gene, '_', Mutation, '_rev'), "\t", reverse_primers[["mut_rev_primer"]]$sequence, "\t", round(reverse_primers[["mut_rev_primer"]]$Tm, 2), "\n",
-                              paste0(gene, '_WT_rev'), "\t", reverse_primers[["wt_rev_primer"]]$sequence, "\t", round(reverse_primers[["wt_rev_primer"]]$Tm, 2), "\n\n", sep = "")
+    rev_primer_table <- paste(rev_primer_table, paste0(gene, '_common_for'), "\t",toupper(reverse_primers[["common_forw_primer"]]$sequence),"\t", round(reverse_primers[["common_forw_primer"]]$Tm, 2), "\n",
+                              paste0(gene, '_', Mutation, '_rev'), "\t", toupper(reverse_primers[["mut_rev_primer"]]$sequence), "\t", round(reverse_primers[["mut_rev_primer"]]$Tm, 2), "\n",
+                              paste0(gene, '_WT_rev'), "\t",toupper(reverse_primers[["wt_rev_primer"]]$sequence), "\t", round(reverse_primers[["wt_rev_primer"]]$Tm, 2), "\n\n", sep = "")
     
     assay_table <- "AS-PCR Assays\nAssay\tForward primer\tReverse primer\tTanneal\n"  
     assay_table <- paste(assay_table, paste0(gene, ' ', Mutation, ' ',  "forward knock-in assay"), "\t",
@@ -1667,7 +2016,103 @@ server <- function(input, output, session) {
     output
   }  
   
-  
+  # function to sort the final list 
+  sortOutputList <- function(inputList, sort_mode){
+    
+    # store the input list and then modify it by sorting
+    outputList <- inputList
+    
+    # Random sorting
+    ###############################################
+    if(sort_mode == "random"){
+      
+      # initial indices
+      indices <- 1: length(outputList)
+      
+      # reshuffle the list indices and the list itself
+      outputList <- outputList[sample(indices)]
+      
+    }
+    
+    # Sorting by average distance
+    #####################################
+    
+    if(sort_mode == "average_dist"){
+      
+      # Get the middle of target codon coordinate
+      codon_pos <- outputList[[1]][["codon_coords"]]
+      middlePos <- mean(codon_pos)
+      
+      # iterate over all list items
+      for(i in 1:length(inputList)){
+        
+        # Collect all mutation coordinates
+        all_mutations <- c()
+        
+        # test if PAM mutation was introduced.
+        if(!is.null(inputList[[i]][["PAM_mutant_codon"]])){ 
+          
+          if(inputList[[i]][["PAM_mutant_codon"]] != "none"){
+            # if yes, record which coordinates were modified
+            all_mutations <-  c(all_mutations, inputList[[i]]$PAM_mut_codon_diffs)
+          }
+          
+        }
+        
+        # test if sgRNA mutations were introduced
+        if(!is.null(inputList[[i]][["sgRNA_mutations"]])){
+          
+          if(inputList[[i]][["sgRNA_mutations"]]){
+            # if yes, record which coordinates were modified
+            all_mutations <-  c(all_mutations, inputList[[i]][["sgRNA_mut_codon_diffs"]] )
+          }
+          
+        }
+        
+        # test if there are any restriction enzymes associated with the list item
+        if("enzymes" %in% names(inputList[[i]])){
+          
+          # test if "RE_site_codon_diffs" in the relevant list
+          if("RE_site_codon_diffs" %in% names(inputList[[i]][["enzymes"]][[1]])){
+            
+            # extract the mutation coordinates for restriction sites
+            REsite_muts <- inputList[[i]][["enzymes"]][[1]][["RE_site_codon_diffs"]]
+            
+            # store these coordinates in the all_mutations vector
+            all_mutations <-  c(all_mutations, REsite_muts)
+            
+          }  
+          
+        }
+        
+        # combine the list of mutation coordinates and keep the unique members
+        all_mutations <- unique(all_mutations)
+        
+        # store the final results
+        if(length(all_mutations) > 0){
+          
+          # Subtract the codon middle coordinate from all mutation coordinates and take the absolute value,
+          # calculate the mean of these values, store this average_distance attribute in the list
+          outputList[[i]]["average_distance"] <- mean( abs(all_mutations - middlePos))
+          
+        } else {
+          
+          # there are no additional mutations so the distance from the middle of the target
+          outputList[[i]]["average_distance"] <- 0
+          
+        }
+        
+      }
+      
+      # Sort the list  according to this distance 
+      sortBy <- function(a, field) a[order(sapply(a, "[[", i = field))]
+      outputList <- sortBy(outputList, "average_distance")
+      
+    }
+    
+    # output the result
+    outputList
+  }
   
   ########################################
   # Codon mutations code
@@ -1683,12 +2128,16 @@ server <- function(input, output, session) {
     # get the coordinates of the target codon in CDS
     mutString <- coords$Mutation 
     codonNum = as.integer(substr(mutString, 2, nchar(mutString)-1))
-    codonCDS_pos <- c(3*codonNum-2, 3*codonNum)
     
+    # basic sequence parts
     CDS <- coords$CDS
     exon <- coords$exon_sequence
     intr5 <- coords$intron5
     intr3 <- coords$intron3
+    
+    # define the original codon from the CDS
+    # to be used later for finding replacement codon chunks
+    codonCDS <- substr(CDS, 3*codonNum-2, 3*codonNum)
     
     # primers
     forw_primer_pos <- coords[["forw_primer"]]
@@ -1697,28 +2146,36 @@ server <- function(input, output, session) {
     # offset all the positions - necessary to convert pattern matching coordinates to normal coordinates
     offset <- forw_primer_pos[1] - 1
     
-    # perform matching of the exon to the CDS and update the codon position within the exon
-    # alignment is a more generic version of solving the problem that exons 
-    # may have alternative nucleotides
-    alignment <- matchPattern(exon, CDS)
-    d1 <- start(alignment)
+    # retrieve codon position from coordinates
+    genomicCodonPos <- coords[["codon"]]
     
-    exonCodonPos <- codonCDS_pos - d1+1
-    
-    ## generate the local genomic string
-    # update the codon coordinates
-    genomicCodonPos <- exonCodonPos + nchar(intr5)
+    # retrieve codon phase
+    codonPhase <- coords[["codon_phase"]]
     
     # make the genomic string
     genomicString <- paste(tolower(intr5), toupper(exon), tolower(intr3), sep = "")
     
+    #############################################################################
     ## perform codon mutations
     
     # get mutant amino acid (the last character in the mutation input)
     mutAA <- substr(input$Mutation, nchar(input$Mutation), nchar(input$Mutation))
     
-    # get mutant codons
-    mutCodons <- REV_GENETIC_CODE[[mutAA]]
+    ###############################################################
+    # find codons with which to substitute based on all the inputs 
+    # and whether the target codon overlaps two exons
+    ################################################################
+    
+    if(codonPhase == 0){ # non-overlapping case
+      
+      mutCodons <- REV_GENETIC_CODE[[mutAA]]  
+      
+    } else{ # overlapping cases
+      
+      mutCodons <- find_overlapCodon_mutantCodons(codonCDS, codonPhase, mutAA, GENETIC_CODE, REV_GENETIC_CODE)
+      
+    }
+    
     
     #############################
     # perform codon substitutions
@@ -1878,6 +2335,7 @@ server <- function(input, output, session) {
     
     # get  the codonMutations list input
     codons_muts <- codonMutations()
+    
     
     # get the coordinates of sgRNA and PAM which would be 
     # common to all mutations
@@ -2146,7 +2604,6 @@ server <- function(input, output, session) {
                 if( (tempNextCodon[1] >= coords$exon[1]) & (tempNextCodon[2] <= coords$exon[2]) ){
                   OverlapCodon2 <- codon + 3
                 }
-                
                 
               }
               
@@ -2441,6 +2898,8 @@ server <- function(input, output, session) {
     coords <-strategyCoords()
     
     codonPos <- coords[["codon"]]
+    codonPhase <- coords[["codon_phase"]]
+    
     exonPos <- coords[["exon"]]
     exonStart <- exonPos[1]
     exonEnd <- exonPos[2]
@@ -2720,51 +3179,89 @@ server <- function(input, output, session) {
       codons2mut4REsites <- list()
       sel_codon_id <- 1
       
-      # total number 
-      num_checked <- 0
-      
-      # make pointers
-      left_pointer <- 1
-      right_pointer <- 1
-      
-      
-      # loop to iterate over potential codons
-      while(length(codons2mut4REsites) <= 3 & num_checked < 6 ){
+      if(codonPhase == 0){
         
-        # select a codon 5' (left) from the target codon
-        leftCodon <- codonPos - left_pointer*3
+        # total number 
+        num_checked <- 0
         
-        # update num_checked variable
-        num_checked <- num_checked + 1
-        left_pointer <- left_pointer + 1
+        # make pointers
+        left_pointer <- 1
+        right_pointer <- 1
         
-        # check if this codon is OK
-        if( !vector_in_list(mutated_codons, leftCodon) & (leftCodon[1] >=  exonStart) ){
+        
+        # loop to iterate over potential codons
+        while(length(codons2mut4REsites) <= 3 & num_checked < 6 ){
           
-          codons2mut4REsites[[sel_codon_id]] <- leftCodon
-          sel_codon_id <- sel_codon_id + 1
+          # select a codon 5' (left) from the target codon
+          leftCodon <- codonPos - left_pointer*3
           
-        }          
-        
-        
-        # select a codon 3' (right) from the target codon
-        rightCodon <- codonPos + right_pointer*3
-        
-        # update num_checked variable and the pointer
-        num_checked <- num_checked + 1
-        right_pointer <- right_pointer + 1
-        
-        # check if this codon is OK
-        if( !vector_in_list(mutated_codons, rightCodon) & (rightCodon[1] <=  exonEnd) ){
+          # update num_checked variable
+          num_checked <- num_checked + 1
+          left_pointer <- left_pointer + 1
           
-          codons2mut4REsites[[sel_codon_id]] <- rightCodon
-          sel_codon_id <- sel_codon_id + 1
+          # check if this codon is OK
+          if( !vector_in_list(mutated_codons, leftCodon) & (leftCodon[1] >=  exonStart) ){
+            
+            codons2mut4REsites[[sel_codon_id]] <- leftCodon
+            sel_codon_id <- sel_codon_id + 1
+            
+          }          
           
-        }          
+          
+          # select a codon 3' (right) from the target codon
+          rightCodon <- codonPos + right_pointer*3
+          
+          # update num_checked variable and the pointer
+          num_checked <- num_checked + 1
+          right_pointer <- right_pointer + 1
+          
+          # check if this codon is OK
+          if( !vector_in_list(mutated_codons, rightCodon) & (rightCodon[1] <=  exonEnd) ){
+            
+            codons2mut4REsites[[sel_codon_id]] <- rightCodon
+            sel_codon_id <- sel_codon_id + 1
+            
+          }          
+          
+          
+        } # end of while loop for finding codons to be mutated
         
         
-      } # end of while loop for finding codons to be mutated
-      
+      } else if(codonPhase < 0){ # the overlap piece of the target codon is on the 5' part of the exon
+        
+        for( i in 1:3){
+          
+          nextCodon <- c(codonPos[2] + (i-1)*3 + 1, codonPos[2] + (i-1)*3 + 3)
+          
+          # check if this codon is OK
+          if( !vector_in_list(mutated_codons, nextCodon) & (nextCodon[1] >=  exonStart) ){
+            
+            codons2mut4REsites[[sel_codon_id]] <- nextCodon
+            sel_codon_id <- sel_codon_id + 1
+            
+          }          
+          
+        } # end for loop
+        
+        
+        
+      } else if(codonPhase > 0){ # the overlap piece of the target codon is on the 3' part of the exon
+        
+        for( i in 1:3){
+          
+          nextCodon <- c(codonPos[1] - 3*i, codonPos[1] - 3*i + 2)
+          
+          # check if this codon is OK
+          if( !vector_in_list(mutated_codons, nextCodon) & (nextCodon[1] >=  exonStart) ){
+            
+            codons2mut4REsites[[sel_codon_id]] <- nextCodon
+            sel_codon_id <- sel_codon_id + 1
+            
+          }          
+          
+        } # end for loop
+        
+      } # end of if-else structure to identify the codons to be mutated for restriction sites
       
       ###########################################################
       # synonymous mutations in the selected codons
@@ -2775,7 +3272,6 @@ server <- function(input, output, session) {
       # the idea is that we want to remove all enzymes that have already been found
       # and focus on the newly found ones
       non_cutters_mut <- getNonCutters(all_enzymes, mut_site_assay)
-      
       
       # iterate over all potential codons to be selected
       for(codon in codons2mut4REsites){
@@ -3013,6 +3509,8 @@ server <- function(input, output, session) {
   }) # end of REsite_silent_mutations
   
   
+  ###################################################################################
+  # function to add REsite silent mutations in case no PAM mutations were introduced
   noPAMmuts_REsiteSilentMuts <- reactive({
     
     # create a list for output
@@ -3030,6 +3528,8 @@ server <- function(input, output, session) {
     coords <-strategyCoords()
     
     codonPos <- coords[["codon"]]
+    codonPhase <- coords[["codon_phase"]]
+    
     exonPos <- coords[["exon"]]
     exonStart <- exonPos[1]
     exonEnd <- exonPos[2]
@@ -3225,50 +3725,88 @@ server <- function(input, output, session) {
       codons2mut4REsites <- list()
       sel_codon_id <- 1
       
-      # total number 
-      num_checked <- 0
-      
-      # make pointers
-      left_pointer <- 1
-      right_pointer <- 1
-      
-      
-      # loop to iterate over potential codons
-      while(length(codons2mut4REsites) <= 3 & num_checked < 6 ){
+      if(codonPhase == 0){
         
-        # select a codon 5' (left) from the target codon
-        leftCodon <- codonPos - left_pointer*3
+        # total number 
+        num_checked <- 0
         
-        # update num_checked variable
-        num_checked <- num_checked + 1
-        left_pointer <- left_pointer + 1
+        # make pointers
+        left_pointer <- 1
+        right_pointer <- 1
         
-        # check if this codon is OK
-        if( !vector_in_list(mutated_codons, leftCodon) & (leftCodon[1] >=  exonStart) ){
+        
+        # loop to iterate over potential codons
+        while(length(codons2mut4REsites) <= 3 & num_checked < 6 ){
           
-          codons2mut4REsites[[sel_codon_id]] <- leftCodon
-          sel_codon_id <- sel_codon_id + 1
+          # select a codon 5' (left) from the target codon
+          leftCodon <- codonPos - left_pointer*3
           
-        }          
-        
-        
-        # select a codon 3' (right) from the target codon
-        rightCodon <- codonPos + right_pointer*3
-        
-        # update num_checked variable and the pointer
-        num_checked <- num_checked + 1
-        right_pointer <- right_pointer + 1
-        
-        # check if this codon is OK
-        if( !vector_in_list(mutated_codons, rightCodon) & (rightCodon[1] <=  exonEnd) ){
+          # update num_checked variable
+          num_checked <- num_checked + 1
+          left_pointer <- left_pointer + 1
           
-          codons2mut4REsites[[sel_codon_id]] <- rightCodon
-          sel_codon_id <- sel_codon_id + 1
+          # check if this codon is OK
+          if( !vector_in_list(mutated_codons, leftCodon) & (leftCodon[1] >=  exonStart) ){
+            
+            codons2mut4REsites[[sel_codon_id]] <- leftCodon
+            sel_codon_id <- sel_codon_id + 1
+            
+          }          
           
-        }          
+          
+          # select a codon 3' (right) from the target codon
+          rightCodon <- codonPos + right_pointer*3
+          
+          # update num_checked variable and the pointer
+          num_checked <- num_checked + 1
+          right_pointer <- right_pointer + 1
+          
+          # check if this codon is OK
+          if( !vector_in_list(mutated_codons, rightCodon) & (rightCodon[1] <=  exonEnd) ){
+            
+            codons2mut4REsites[[sel_codon_id]] <- rightCodon
+            sel_codon_id <- sel_codon_id + 1
+            
+          }          
+          
+          
+        } # end of while loop for finding codons to be mutated
         
         
-      } # end of while loop for finding codons to be mutated
+      } else if(codonPhase < 0){ # the overlap piece of the target codon is on the 5' part of the exon
+        
+        for( i in 1:3){
+          
+          nextCodon <- c(codonPos[2] + (i-1)*3 + 1, codonPos[2] + (i-1)*3 + 3)
+          
+          # check if this codon is OK
+          if( !vector_in_list(mutated_codons, nextCodon) & (nextCodon[1] >=  exonStart) ){
+            
+            codons2mut4REsites[[sel_codon_id]] <- nextCodon
+            sel_codon_id <- sel_codon_id + 1
+            
+          }          
+          
+        } # end for loop
+        
+        
+      } else if(codonPhase > 0){ # the overlap piece of the target codon is on the 3' part of the exon
+        
+        for( i in 1:3){
+          
+          nextCodon <- c(codonPos[1] - 3*i, codonPos[1] - 3*i + 2)
+          
+          # check if this codon is OK
+          if( !vector_in_list(mutated_codons, nextCodon) & (nextCodon[1] >=  exonStart) ){
+            
+            codons2mut4REsites[[sel_codon_id]] <- nextCodon
+            sel_codon_id <- sel_codon_id + 1
+            
+          }          
+          
+        } # end for loop
+        
+      } # end of if-else structure to identify the codons to be mutated for restriction sites
       
       
       ###########################################################
@@ -3585,7 +4123,7 @@ server <- function(input, output, session) {
                         "<strong><font style='color: fuchsia'>", "sgRNA sequence",
                         "</font></strong>","  ", 
                         "<font style='font-size: 12pt;'>EXON  ","</font>", 
-                        "<font style='font-size: 12pt; font-weight: normal'>intron", "</font>",
+                        "<font style='font-size: 12pt; font-weight: normal'>flanking", "</font>",
                         "</p>",
                         "</div>", sep = "")
     
@@ -3677,6 +4215,14 @@ server <- function(input, output, session) {
           forw_primer_pos <- coords[["forw_primer"]]
           rev_primer_pos <- coords[["rev_primer"]]
           
+          # sort the list
+          outputList <- sortOutputList(outputList, input$oligo_sorting)
+          
+          # subset the list according to the maximum number of oligos we can consider
+          if(input$max_number < length(outputList)){
+            outputList <- outputList[1:input$max_number]
+          }
+          
           # iterate over the list items
           lapply(1:length(outputList), function(j) {
             
@@ -3690,7 +4236,7 @@ server <- function(input, output, session) {
             REsite_muts <- c()
             
             # get new replacement codon sequence
-            new_codon <- substr(sequence, codon_pos[1], codon_pos[3])
+            new_codon <- substr(sequence, codon_pos[1], codon_pos[length(codon_pos)])
             
             # codon mutations
             codon_muts <- outputList[[j]][["codon_diffs_coords"]]
@@ -3816,7 +4362,7 @@ server <- function(input, output, session) {
             reportString <- paste(reportString, "Oligo\tSequence", "\n", sep = "")
             
             # write oligo name and sequence
-            oligo_name <- paste(input$gene, " ", input$Mutation, " (", codon, " => ", new_codon, ") oligo ", j, sep='')
+            oligo_name <- paste(input$gene, " ", input$Mutation, " (", orig_codon, " => ", new_codon, ") oligo ", j, sep='')
             
             # add oligo name and sequence
             reportString <- paste(reportString, oligo_name, "\t", substr(sequence, oligoStart, oligoEnd), "\n\n", sep = "")
@@ -3922,6 +4468,11 @@ server <- function(input, output, session) {
           # the output for PAM/sgRNA only mutations
           isolate({ PAMonlyList <- PAM_mutations() })
           
+          # subset the list according to the maximum number of oligos we can consider
+          if(input$max_number < length(PAMonlyList)){
+            PAMonlyList <- PAMonlyList[1:input$max_number]
+          }
+          
           # get back the position data to the original state before off-setting
           codon_pos <- coords[["codon"]][1]: coords[["codon"]][2]
           pam_pos <- coords[["PAM"]][1]: coords[["PAM"]][2]
@@ -3930,6 +4481,14 @@ server <- function(input, output, session) {
           forw_primer_pos <- coords[["forw_primer"]]
           rev_primer_pos <- coords[["rev_primer"]]
           offset <- forw_primer_pos[1] -1
+          
+          # sort the list
+          PAMonlyList <- sortOutputList(PAMonlyList, input$oligo_sorting)
+          
+          # subset the list according to the maximum number of oligos we can consider
+          if(input$max_number < length(PAMonlyList)){
+            PAMonlyList <- PAMonlyList[1:input$max_number]
+          }
           
           # iterate each oligo design
           lapply(1:length(PAMonlyList), function(j) {
@@ -3943,7 +4502,7 @@ server <- function(input, output, session) {
             sgRNA_muts <- c()
             
             # get new replacement codon sequence
-            new_codon <- substr(sequence, codon_pos[1], codon_pos[3])
+            new_codon <- substr(sequence, codon_pos[1], codon_pos[length(codon_pos)])
             
             # codon mutations
             codon_muts <- PAMonlyList[[j]][["codon_diffs_coords"]]
@@ -4057,7 +4616,7 @@ server <- function(input, output, session) {
             reportString <- paste(reportString, "Oligo\tSequence", "\n", sep = "")
             
             # write oligo name and sequence
-            oligo_name <- paste(input$gene, " ", input$Mutation, " (", codon, " => ", new_codon, ") oligo ", j, sep='')
+            oligo_name <- paste(input$gene, " ", input$Mutation, " (", orig_codon, " => ", new_codon, ") oligo ", j, sep='')
             
             # add oligo name and sequence
             reportString <- paste(reportString, oligo_name, "\t", substr(sequence, oligoStart, oligoEnd), "\n\n", sep = "")
@@ -4176,12 +4735,26 @@ server <- function(input, output, session) {
           # list of silent REsite mutations designs
           isolate({ noPAM_REsitesList <- noPAMmuts_REsiteSilentMuts() })
           
+          # subset the list according to the maximum number of oligos we can consider
+          if(input$max_number < length(noPAM_REsitesList)){
+            noPAM_REsitesList <- noPAM_REsitesList[1:input$max_number]
+          }
+          
           ## 1. collect variables for AS-PCR primer designs
           forw_primer_pos <- coords[["forw_primer"]]
           rev_primer_pos <- coords[["rev_primer"]]
           
           # coordinates of the first and last target codon nucleotide change
           offset <- forw_primer_pos[1] - 1            
+          
+          # sort the list
+          noPAM_REsitesList <- sortOutputList(noPAM_REsitesList, input$oligo_sorting)
+          
+          # subset the list according to the maximum number of oligos we can consider
+          if(input$max_number < length(noPAM_REsitesList)){
+            noPAM_REsitesList <- noPAM_REsitesList[1:input$max_number]
+          }
+          
           
           # iterate over the list items
           lapply(1:length(noPAM_REsitesList), function(j) {
@@ -4307,7 +4880,7 @@ server <- function(input, output, session) {
             reportString <- paste(reportString, "Oligo\tSequence", "\n", sep = "")
             
             # write oligo name and sequence
-            oligo_name <- paste(input$gene, " ", input$Mutation, " (", codon, " => ", new_codon, ") oligo ", j, sep='')
+            oligo_name <- paste(input$gene, " ", input$Mutation, " (", orig_codon, " => ", new_codon, ") oligo ", j, sep='')
             
             # add oligo name and sequence
             reportString <- paste(reportString, oligo_name, "\t", substr(sequence, oligoStart, oligoEnd), "\n\n", sep = "")
@@ -4412,12 +4985,25 @@ server <- function(input, output, session) {
           # codon mutations list
           isolate({ CodonMutsList <- codonMutations() })
           
+          # subset the list according to the maximum number of oligos we can consider
+          if(input$max_number < length(CodonMutsList)){
+            CodonMutsList <- CodonMutsList[1:input$max_number]
+          }
+          
           ## collect variables for AS-PCR primer designs
           forw_primer_pos <- coords[["forw_primer"]]
           rev_primer_pos <- coords[["rev_primer"]]
           
           # coordinates of the first and last target codon nucleotide change
           offset <- forw_primer_pos[1] - 1            
+          
+          # sort the list
+          CodonMutsList <- sortOutputList(CodonMutsList, input$oligo_sorting)
+          
+          # subset the list according to the maximum number of oligos we can consider
+          if(input$max_number < length(CodonMutsList)){
+            CodonMutsList <- CodonMutsList[1:input$max_number]
+          }
           
           # get back the position data to the original state before off-setting
           codon_pos <- coords[["codon"]][1]: coords[["codon"]][2]
@@ -4527,7 +5113,7 @@ server <- function(input, output, session) {
             reportString <- paste(reportString, "Oligo\tSequence", "\n", sep = "")
             
             # write oligo name and sequence
-            oligo_name <- paste(input$gene, " ", input$Mutation, " (", codon, " => ", new_codon, ") oligo ", j, sep='')
+            oligo_name <- paste(input$gene, " ", input$Mutation, " (", orig_codon, " => ", new_codon, ") oligo ", j, sep='')
             
             # add oligo name and sequence
             reportString <- paste(reportString, oligo_name, "\t", substr(sequence, oligoStart, oligoEnd), "\n\n", sep = "")
@@ -4778,7 +5364,7 @@ server <- function(input, output, session) {
             reportString <- paste(reportString, "Oligo\tSequence", "\n", sep = "")
             
             # write oligo name and sequence
-            oligo_name <- paste(input$gene, " ", input$Mutation, " (", codon, " => ", new_codon, ") oligo ", j, sep='')
+            oligo_name <- paste(input$gene, " ", input$Mutation, " (", orig_codon, " => ", new_codon, ") oligo ", j, sep='')
             
             # add oligo name and sequence
             reportString <- paste(reportString, oligo_name, "\t", substr(sequence, oligoStart, oligoEnd), "\n\n", sep = "")
@@ -5003,7 +5589,7 @@ server <- function(input, output, session) {
             reportString <- paste(reportString, "Oligo\tSequence", "\n", sep = "")
             
             # write oligo name and sequence
-            oligo_name <- paste(input$gene, " ", input$Mutation, " (", codon, " => ", new_codon, ") oligo ", j, sep='')
+            oligo_name <- paste(input$gene, " ", input$Mutation, " (", orig_codon, " => ", new_codon, ") oligo ", j, sep='')
             
             # add oligo name and sequence
             reportString <- paste(reportString, oligo_name, "\t", substr(sequence, oligoStart, oligoEnd), "\n\n", sep = "")
@@ -5160,6 +5746,7 @@ server <- function(input, output, session) {
   
   
 } # end of server
+
 
 # Run the application 
 shinyApp(ui = ui, server = server)

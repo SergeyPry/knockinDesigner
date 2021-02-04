@@ -15,6 +15,7 @@ library(shinyFeedback)
 library(shinycssloaders)
 library(readr)
 
+
 # Define UI for application that draws a histogram
 ui <- shinyUI(fluidPage(
   
@@ -34,8 +35,8 @@ ui <- shinyUI(fluidPage(
       HTML('<button type="button" class="btn btn-primary" style="width: 100%; font-size: 14px">Gene mutation</button><p></p>'),
       
       fluidRow(
-        column(5, textInput("gene", label = "Gene name (optional)", value = "lmna")),
-        column(6, textInput("Mutation", label = "Mutation (e.g. A123C)", value = "R471L"))
+        column(5, textInput("gene", label = "Gene name (optional)", value = "")),
+        column(6, textInput("Mutation", label = "Mutation (e.g. A123C)", value = ""))
       ),
       
       HTML('<button type="button" class="btn btn-primary" style="width: 100%; font-size: 14px">Gene sequence data</button><p></p>'),
@@ -46,43 +47,59 @@ ui <- shinyUI(fluidPage(
                            
                            fluidRow(
                              
-                             column(12,textAreaInput("CDS", "atggagactccaggtcagaaacgaagcagccgcggtggggtgaccaatgtcctgtcccctacccgcatctctcgattgcaggaaaaggaggacttgagcaacctgaatgaccgtctggcggtctacatcgataaggttcgctctctggaggtggagaacgcaggtctgcgtatgcgcatcactgaatccgagacggagatcagccgggagctgagtggcatgaaagcggcgtacgaggctgaactcgcagatgccaggaaaacactggactcggtggccaaagaacgagccagactgcaactggagctcagcaaagtgcgtgaggactacaaggagctgaaggccaggaacggtaagaaagaagcagatctggaatctgctctggccaggctgaaggatctggagtctctactgaactccaaggacgcgtctctctccacagctctgggggagaagagaacactggaggtggaagtcagagatttgaaagcccagctggccaagttggagggcagtctaaacgatgcaaagaagcagctgcaggatgaaatgctgcgacgtgtggatgccgaaaaccgaatccagacactgaaagaggagctggagttccagaagaacatctactctgaggagctccgtgagtctaagcgcagatatgagtcacgtgtggtggagattgacagcggccgccagcaggattatgagagtaaactggccgacgctttaactgacctccgcaaccaacatgaagagcagcttcgcatctacaaggaagaaatcgagaagacctacaactccaagctggaaaatgctcgctcttccgctgaaaggaacagtcatctggttggagccgcccatgaggaactgcagcaaacacgtgttaggatggagggtgtgagttcacagctcagtcagctgcagaaacagttggctgctcgagaggcgaagatccgcgagctggaagaggccctgtccagagagagggatattttgcgccgtcgtctggaggacaaggagaaggagatggctgagatgagacagcgcatgcagcaacagctggacgagtaccaggagctgctagacatcaaactcgctctggacatggagatcagtgcctacaggaagcttctggagggagaggaggaaagacttcgtctgtctccgagtcctcctcctgctcgtggggtgacggtgacccgctcctctggttcaggctctcacactcgtgtggttcagagcagcaccagtcgcacatcctccggcagcgccaagaaacggcgcttgaatgataacgacagtgatgcctccagtgtggttggaggaacagtgacccgcacacggatctcccagcaagcctcagccagcggccgcgtcaccgttgacgaagtcgacctggaaggaaaatttgtgcggcttaataacaagtctgaccaggatcagtctctgggtcactggcaggtgaagaggcagattggttctggcactcccatcgtctacaagtttccacccaaatttaacctgaaggcagggcagactgtcacgatctgggctgcaggagccggaggcacccacagtcctcccagtgacctggtgtggaagacccagaactcatggggcagcggtgatttgttccagaccaccctcatcagctccagcggagaggaaatggcgatgagaaaagtcacacgtactctgttccaggatgaggaagatgatgagatggcggctcacagcacatgcggagacagcgagtataacctgcgcagccgtactgtgttgtgcggctcgtgtggtcagccgtccgacaggaacagcagttgtgtttctgccagctcaggagtgtccagcgcatctcgctccttcagcagtggaggaggaggaggactcactgaagcttttgtgtcaccctctcactttattgtgagcaacgacaaacccagacaggtgtgtactgtatgtgtggagggcacttttgtttgtttgttaaatagcattacattgtggttggtttctctcttttttgaatga", label ="Coding DNA sequence", height = "100px")),
-                             column(12,textAreaInput("exon", "acttcgtctgtctccgagtcctcctcctgctcgtggggtgacggtgacccgctcctctggttcaggctctcacactcgtgtggttcagagcagcaccagtcgcacatcctccggcagcgccaagaaacggcgcttgaatgataacgacagtgatgcctccagtgtggttggaggaacagtgacccgcacacggatctcccagcaagcctcagccagcggccgcgtcaccgttgacgaagtcgacctggaaggaaaatttgtgcggcttaataacaagtctgaccag", label ="Mutation site exon sequence",  height = "50px"))),
-    
+                             column(12,textAreaInput("CDS", "", label ="Coding DNA sequence", height = "100px")),
+                             column(12,textAreaInput("exon", "", label ="Mutation site exon sequence",  height = "50px")),
+                           ), 
+                           
+                           
                            fluidRow(
-                             
-                             column(12, p(class = "panel-title",style="font-size: 16px; color: blue", "Optional flanking sequences", "(one/both primers bind the exon):"), p()),
-                           ),
-                                                  
-                           fluidRow(
-                   
-                             column(12,textAreaInput("intron5", "aaccatatatgaattgcgtcaacaaaagtaactgcatactgtacatcacatttgctttggaaaactcaactgccttacacatttacttaccattttgcccccattgtctctatttag", label ="5' flanking fragment (>100 bp if possible)", height = "50px")),
-                             column(12,textAreaInput("intron3", "gtgagaacaaaaagccaccaatacaatgattgaagtgccatgaaatgtataactttgttcgatttctggcataatttaaacttaaacatgtagagagggcgagatatagagaagcttctccccctttaaaaatagccaataggattttgcttatggcagcttaaaatgctgagcta", label ="3' flanking fragment (>100 bp if possible)", height = "50px"))
-                             
+                             column(12,textAreaInput("intron5", "", label ="5' flanking fragment (>100 bp if possible) - optional*", height = "50px")),
+                             column(12,textAreaInput("intron3", "", label ="3' flanking fragment (>100 bp if possible) - optional*", height = "50px")),
+                             column(12, p("*Flanking sequences are optional as one or both primers may bind the exon", style="color:blue; font-size: 14px"))
                            )
+                           
                   ),
                   
                   tabPanel(p(class = "panel-title",  style="width: 100%, font-size: 14px; color: blue", "ID-based input"),
                            tags$p(),
                            
-                           fluidRow(  column(5, textInput("transcriptID", "Ensembl Transcript ID")) )
-                  )
+                           fluidRow(column(7, selectInput("species", "Species", 
+                                                          choices = list("select your species" = "",
+                                                                         "Human (Homo sapiens)" = "hsapiens_gene_ensembl", "Mouse (Mus musculus)" = "mmusculus_gene_ensembl",
+                                                                         "Rat (Rattus norvegicus)" = "rnorvegicus_gene_ensembl", "Xenopus tropicalis" = "xtropicalis_gene_ensembl",
+                                                                         "Medaka (Oryzias latipes)" = "olatipes_gene_ensembl", "Zebrafish (Danio rerio)" = "drerio_gene_ensembl",
+                                                                         "Fruitfly (Drosophila melanogaster)" = "dmelanogaster_gene_ensembl", "Caenorhabditis elegans" = "celegans_gene_ensembl",
+                                                                         "Baker's yeast (Saccharomyces cerevisiae)" = "scerevisiae_gene_ensembl", "Gorilla (Gorilla gorilla)" = "ggorilla_gene_ensembl", 
+                                                                         "Gibbon  (Nomascus leucogenys)" = "nleucogenys_gene_ensembl","Chimpanzee (Pan troglodytes)" = "ptroglodytes_gene_ensembl", 
+                                                                         "Pig (Sus scrofa)" = "sscrofa_gene_ensembl", "Sheep (Ovis aries)" = "oaries_gene_ensembl",
+                                                                         "Cow (Bos taurus)" = "btaurus_gene_ensembl", "Rabbit (Oryctolagus cuniculus)" = "ocuniculus_gene_ensembl",
+                                                                         "Dog (Canis familiaris)" = "cfamiliaris_gene_ensembl", "Cat (Felis catus)" = "fcatus_gene_ensembl",
+                                                                         "Ferret (Mustela putorius furo)" = "mfuro_gene_ensembl", "Turkey (Meleagris gallopavo)" = "mgallopavo_gene_ensembl", "Chicken (Gallus gallus)" = "ggallus_gene_ensembl",
+                                                                         "Duck (Anas platyrhynchos)" = "aplatyrhynchos_gene_ensembl", "Spotted gar (Lepisosteus oculatus)" = "loculatus_gene_ensembl", 
+                                                                         "Tilapia (Oreochromis niloticus )" = "oniloticus_gene_ensembl","Tetraodon viridis" = "tnigroviridis_gene_ensembl", 
+                                                                         "Platyfish (Xiphophorus maculatus)" = "xmaculatus_gene_ensembl","Fugu (Fugu rubripes)" = "trubripes_gene_ensembl", 
+                                                                         "Cod (Gadus morhua)" = "gmorhua_gene_ensembl", "Ciona savignyi" = "csavignyi_gene_ensembl", 
+                                                                         "Ciona intestinalis" = "cintestinalis_gene_ensembl"))), 
+                                    column(5, textInput("transcriptID", "Ensembl Transcript ID")) )
+                 )
                   
       ), 
       
       HTML('<button type="button" class="btn btn-primary" style="width: 100%; font-size: 14px">PCR primers</button><p></p>'),
       
       fluidRow(
-        column(6,textInput("forw_primer", "cagcaccagtcgcacatc", label ="Forward Primer")),
-        column(6,textInput("rev_primer", "agctgccataagcaaaatcc", label ="Reverse Primer"))
+        column(6,textInput("forw_primer", "", label ="Forward Primer")),
+        column(6,textInput("rev_primer", "", label ="Reverse Primer"))
       ),
+      
+      
       
       
       HTML('<button type="button" class="btn btn-primary" style="width: 100%; font-size: 14px">Guide RNA parameters</button><p></p>'),
       
       fluidRow(
         column(6, textInput("sgRNA_seq", label = "sgRNA sequence", 
-                            value = "cctggaaggaaaatttgtg")),
+                            value = "")),
         column(6,
                selectInput("oriented", label = "sgRNA orientation", 
                            choices = list("sense" = "sense", "antisense" = "anti"), selected = 1))
@@ -101,8 +118,7 @@ ui <- shinyUI(fluidPage(
                                               "FnCas12a: TTN" = "TTN",
                                               "FnCas12a: YTN" = "YTN",
                                               "Mb3Cas12a: NTTN" = "NTTN",
-                                              "ErCas12a: YTTN" = "YTTN"), selected = 1))), 
-      
+                                              "ErCas12a: YTTN" = "YTTN"), selected = 1))),      
       
       
       HTML('<button type="button" class="btn btn-primary" style="width: 100%; font-size: 14px">Oligo options</button><p></p>'),
@@ -124,20 +140,15 @@ ui <- shinyUI(fluidPage(
         
         column(6, radioButtons("mutatePAM", "Synonymous codon mutations of PAM or sgRNA spacer?",
                                c("Yes" = "yes", "No" = "no")),
-               helpText("PAM/sgRNA codon mutations are only suitable for Cas9 and not for Cas12a/Cpf1 enzymes.") ),
+               helpText("PAM/sgRNA codon mutations are only suitable for Cas9 and not for Cas12a/Cpf1 enzymes.")
+        ),
         column(6, radioButtons("REsites", "Introduce restriction enzyme sites by synonymous codon mutations?",
                                c("Yes" = "yes", "No" = "no")))
         
       ),
       
-      fluidRow(
-        
-        column( 6, sliderInput("max_number", "Maximum oligo number", min = 5, max = 50, value = 20, step = 5)),
-        column( 6, radioButtons("oligo_sorting", "Choose how to sort oligos", 
-                                c("No sorting" = "no", "Random" = "random", "Average mutation-codon distance" = "average_dist") ))
-      ),
       
-
+      
       actionButton("run", "Submit")
     ), # end of sidebarPanel      
     
@@ -175,10 +186,10 @@ ui <- shinyUI(fluidPage(
                   )
                   
       )
-    ) # end of mainPanel  
+
+    ) # end of mainPanel
   )
 ))
-
 
 # Define server logic to design oligos for point mutation knock-in
 server <- function(input, output, session) {
@@ -1024,7 +1035,7 @@ server <- function(input, output, session) {
     mutString <- str_trim(input$Mutation)
     
     shiny::validate(need( mutString != "", "Mutation name cannot be blank. Please enter a mutation."))    
-    shiny::validate(need(str_detect(mutString, "^[ARNDCEQGHILKMFPSTWYVarndceqghilkmfpstwyv]\\d{1,5}[ARNDCEQGHILKMFPSTWYVarndceqghilkmfpstwyv*]$"), "Mutation must have the pattern A123C or A123*, * - a stop codon. Please correct this." ))
+    shiny::validate(need(str_detect(mutString, "^[:alpha:]\\d{1,5}[a-zA-Z*]$"), "Mutation must have the pattern A123C or A123*, * - a stop codon. Please correct this." ))
     
     # if OK, store codon number
     codonNum <- as.integer(substr(mutString, 2, nchar(mutString)-1))
@@ -1040,11 +1051,10 @@ server <- function(input, output, session) {
     #######################################################################
     #   automatic retrieval of data if all required inputs have been provided
     ########################################################################
-    if(input$gene != "" & input$transcriptID != "" ){
+    if(input$species != "" & input$gene != "" & input$transcriptID != "" ){
       
       # get the basic input information
       trID <- str_trim(input$transcriptID)
-      trID <- unlist(str_split(trID, '\\.'))[1]
       
       # shiny::validate the Ensembl transcript ID
       shiny::validate( need(str_detect(trID, "ENS[A-Z]{0,3}T[0-9]{11}"), "Please enter a valid Ensembl Transcript ID") )
@@ -1070,58 +1080,13 @@ server <- function(input, output, session) {
       
       ext <- "/sequence/id"
       
-      if(length(exonIDs) > 50){
-        
-        # start an empty vector for output
-        exon_seqs0 <- c()
-        
-        # iterate retrieval
-        n_requests <- as.integer(length(exonIDs)/50)
-        
-        # do full maximum requests 
-        for(k in 1:n_requests){
-          startIdx <- (k-1)*50 + 1
-          endIdx <- k*50
-          
-          currIDs <- exonIDs[startIdx : endIdx]
-          
-          exons_search_string <- paste0('{ "ids" : [', paste(shQuote(currIDs, type="cmd"), collapse=", "), '] }')
-          exons_search_string
-          
-          r <- POST(paste(server, ext, sep = ""), content_type("application/json"), accept("application/json"), body = exons_search_string)
-          content(r)
-          
-          result <-  unlist(fromJSON(toJSON(content(r)))$seq)
-          exon_seqs0 <- c(exon_seqs0, result)
-          
-        } # end of for loop
-        
-        # get the rest of exonIDs
-        startIdx <- n_requests*50 + 1
-        endIdx <- length(exonIDs)
-        
-        currIDs <- exonIDs[startIdx : endIdx]
-        
-        exons_search_string <- paste0('{ "ids" : [', paste(shQuote(currIDs, type="cmd"), collapse=", "), '] }')
-        exons_search_string
-        
-        r <- POST(paste(server, ext, sep = ""), content_type("application/json"), accept("application/json"), body = exons_search_string)
-        content(r)
-        
-        result <-  unlist(fromJSON(toJSON(content(r)))$seq)
-        exon_seqs0 <- c(exon_seqs0, result)
-        
-      } else{
-        
-        exons_search_string <- paste0('{ "ids" : [', paste(shQuote(exonIDs, type="cmd"), collapse=", "), '] }')
-        exons_search_string
-        
-        r <- POST(paste(server, ext, sep = ""), content_type("application/json"), accept("application/json"), body = exons_search_string)
-        content(r)
-        
-        exon_seqs0 <-  unlist(fromJSON(toJSON(content(r)))$seq)
-        
-      }
+      exons_search_string <- paste0('{ "ids" : [', paste(shQuote(exonIDs, type="cmd"), collapse=", "), '] }')
+      exons_search_string
+      
+      r <- POST(paste(server, ext, sep = ""), content_type("application/json"), accept("application/json"), body = exons_search_string)
+      content(r)
+      
+      exon_seqs0 <-  unlist(fromJSON(toJSON(content(r)))$seq)
       
       #######################################
       # obtain unspliced genomic sequence for the transcript
@@ -1155,30 +1120,10 @@ server <- function(input, output, session) {
       # step 1 algorithm:
       # 1. match all exons to the cDNA to get their coordinates within the cDNA
       exon_cDNA_matches <- str_locate_all(CDNA_seq, exon_seqs0) 
+      length(exon_cDNA_matches)
       
       # iterate over the whole list and store starts and ends sep
-      exon_coords <- c()
-      
-      # iterate over all exon matches
-      for(j in 1:length(exon_cDNA_matches)){
-        
-        if(nrow(exon_cDNA_matches[[j]]) == 1){
-          exon_coords <- c(exon_coords, as.vector(exon_cDNA_matches[[j]]) )
-        } else{
-          
-          # check all rows and test each one to be continuation of cDNA
-          for(m in 1: nrow(exon_cDNA_matches[[j]])){
-            
-            if(as.integer(exon_cDNA_matches[[j]][m,'start']) == (exon_coords[-1] + 1) ){
-              exon_coords <- c(exon_coords, as.vector(exon_cDNA_matches[[j]][m,]) )
-            }
-            
-          }# end of iteration of specific exon matches
-        } # end of else
-      } # end of list iteration
-      
-      
-      df <- data.frame(matrix(exon_coords, nrow=length(exon_cDNA_matches), byrow=T))
+      df <- data.frame(matrix(unlist(exon_cDNA_matches), nrow=length(exon_cDNA_matches), byrow=T))
       
       exon_seqs <- data.frame(gene_exon = exon_seqs0, start = df$X1, end = df$X2) 
       
@@ -1209,9 +1154,9 @@ server <- function(input, output, session) {
         # 5. Store all the results of this algorithm in variables and the list for retrieval.
         
         # test that there is enough sequence on the 5' side
-        if(target_exon_unspl_start >= 701){
+        if(target_exon_unspl_start >= 301){
           
-          intron5 <- substr(unspl_transcript, target_exon_unspl_start - 700, target_exon_unspl_start-1)
+          intron5 <- substr(unspl_transcript, target_exon_unspl_start - 300, target_exon_unspl_start-1)
           
         } else{
           
@@ -1220,9 +1165,9 @@ server <- function(input, output, session) {
         }
         
         # test if there is enough sequence on the 3' side
-        if(nchar(unspl_transcript) >= target_exon_unspl_end + 700 ){
+        if(nchar(unspl_transcript) >= target_exon_unspl_end + 300 ){
           
-          intron3 <- substr(unspl_transcript, target_exon_unspl_end + 1, target_exon_unspl_end + 700)
+          intron3 <- substr(unspl_transcript, target_exon_unspl_end + 1, target_exon_unspl_end + 300)
           
         }else{
           # retrieve as much as possible of the gene sequence
@@ -1291,9 +1236,9 @@ server <- function(input, output, session) {
           # Store all the results of this algorithm in variables and the list for retrieval.
           
           # test that there is enough sequence on the 5' side
-          if(target_exon_unspl_start >= 701){
+          if(target_exon_unspl_start >= 301){
             
-            intron5 <- substr(unspl_transcript, target_exon_unspl_start - 700, target_exon_unspl_start-1)
+            intron5 <- substr(unspl_transcript, target_exon_unspl_start - 300, target_exon_unspl_start-1)
             
           } else{
             
@@ -1302,9 +1247,9 @@ server <- function(input, output, session) {
           }
           
           # test if there is enough sequence on the 3' side
-          if(nchar(unspl_transcript) >= target_exon_unspl_end + 700 ){
+          if(nchar(unspl_transcript) >= target_exon_unspl_end + 300 ){
             
-            intron3 <- substr(unspl_transcript, target_exon_unspl_end + 1, target_exon_unspl_end + 700)
+            intron3 <- substr(unspl_transcript, target_exon_unspl_end + 1, target_exon_unspl_end + 300)
             
           }else{
             # retrieve as much as possible of the gene sequence
@@ -1982,15 +1927,15 @@ server <- function(input, output, session) {
     # make table caption and header
     forw_primer_table <- paste0("Forward AS-PCR primers\n", "Primer\tSequence\tTm\n")
     
-    forw_primer_table <- paste(forw_primer_table, paste0(gene,'_', Mutation, '_for'), "\t", toupper(forward_primers[["mut_forw_primer"]]$sequence), "\t", round(forward_primers[["mut_forw_primer"]]$Tm, 2), "\n",
-                               paste0(gene, '_WT_for'), "\t", toupper(forward_primers[["wt_forw_primer"]]$sequence), "\t", round(forward_primers[["wt_forw_primer"]]$Tm, 2), "\n",
-                               paste0(gene,'_common_rev'), "\t", toupper(forward_primers[["common_rev_primer"]]$sequence), "\t", round(forward_primers[["common_rev_primer"]]$Tm, 2), "\n\n", sep = "")
+    forw_primer_table <- paste(forw_primer_table, paste0(gene,'_', Mutation, '_for'), "\t", forward_primers[["mut_forw_primer"]]$sequence, "\t", round(forward_primers[["mut_forw_primer"]]$Tm, 2), "\n",
+                               paste0(gene, '_WT_for'), "\t", forward_primers[["wt_forw_primer"]]$sequence, "\t", round(forward_primers[["wt_forw_primer"]]$Tm, 2), "\n",
+                               paste0(gene,'_common_rev'), "\t", forward_primers[["common_rev_primer"]]$sequence, "\t", round(forward_primers[["common_rev_primer"]]$Tm, 2), "\n\n", sep = "")
     
     rev_primer_table <- paste0("Reverse AS-PCR primers\n", "Primer\tSequence\tTm\n")
     
-    rev_primer_table <- paste(rev_primer_table, paste0(gene, '_common_for'), "\t",toupper(reverse_primers[["common_forw_primer"]]$sequence),"\t", round(reverse_primers[["common_forw_primer"]]$Tm, 2), "\n",
-                              paste0(gene, '_', Mutation, '_rev'), "\t", toupper(reverse_primers[["mut_rev_primer"]]$sequence), "\t", round(reverse_primers[["mut_rev_primer"]]$Tm, 2), "\n",
-                              paste0(gene, '_WT_rev'), "\t",toupper(reverse_primers[["wt_rev_primer"]]$sequence), "\t", round(reverse_primers[["wt_rev_primer"]]$Tm, 2), "\n\n", sep = "")
+    rev_primer_table <- paste(rev_primer_table, paste0(gene, '_common_for'), "\t", reverse_primers[["common_forw_primer"]]$sequence,"\t", round(reverse_primers[["common_forw_primer"]]$Tm, 2), "\n",
+                              paste0(gene, '_', Mutation, '_rev'), "\t", reverse_primers[["mut_rev_primer"]]$sequence, "\t", round(reverse_primers[["mut_rev_primer"]]$Tm, 2), "\n",
+                              paste0(gene, '_WT_rev'), "\t", reverse_primers[["wt_rev_primer"]]$sequence, "\t", round(reverse_primers[["wt_rev_primer"]]$Tm, 2), "\n\n", sep = "")
     
     assay_table <- "AS-PCR Assays\nAssay\tForward primer\tReverse primer\tTanneal\n"  
     assay_table <- paste(assay_table, paste0(gene, ' ', Mutation, ' ',  "forward knock-in assay"), "\t",
@@ -2013,103 +1958,7 @@ server <- function(input, output, session) {
     output
   }  
   
-  # function to sort the final list 
-  sortOutputList <- function(inputList, sort_mode){
-    
-    # store the input list and then modify it by sorting
-    outputList <- inputList
-    
-    # Random sorting
-    ###############################################
-    if(sort_mode == "random"){
-      
-      # initial indices
-      indices <- 1: length(outputList)
-      
-      # reshuffle the list indices and the list itself
-      outputList <- outputList[sample(indices)]
-      
-    }
-    
-    # Sorting by average distance
-    #####################################
-    
-    if(sort_mode == "average_dist"){
-      
-      # Get the middle of target codon coordinate
-      codon_pos <- outputList[[1]][["codon_coords"]]
-      middlePos <- mean(codon_pos)
-      
-      # iterate over all list items
-      for(i in 1:length(inputList)){
-        
-        # Collect all mutation coordinates
-        all_mutations <- c()
-        
-        # test if PAM mutation was introduced.
-        if(!is.null(inputList[[i]][["PAM_mutant_codon"]])){ 
-          
-          if(inputList[[i]][["PAM_mutant_codon"]] != "none"){
-            # if yes, record which coordinates were modified
-            all_mutations <-  c(all_mutations, inputList[[i]]$PAM_mut_codon_diffs)
-          }
-          
-        }
-        
-        # test if sgRNA mutations were introduced
-        if(!is.null(inputList[[i]][["sgRNA_mutations"]])){
-          
-          if(inputList[[i]][["sgRNA_mutations"]]){
-            # if yes, record which coordinates were modified
-            all_mutations <-  c(all_mutations, inputList[[i]][["sgRNA_mut_codon_diffs"]] )
-          }
-          
-        }
-        
-        # test if there are any restriction enzymes associated with the list item
-        if("enzymes" %in% names(inputList[[i]])){
-          
-          # test if "RE_site_codon_diffs" in the relevant list
-          if("RE_site_codon_diffs" %in% names(inputList[[i]][["enzymes"]][[1]])){
-            
-            # extract the mutation coordinates for restriction sites
-            REsite_muts <- inputList[[i]][["enzymes"]][[1]][["RE_site_codon_diffs"]]
-            
-            # store these coordinates in the all_mutations vector
-            all_mutations <-  c(all_mutations, REsite_muts)
-            
-          }  
-          
-        }
-        
-        # combine the list of mutation coordinates and keep the unique members
-        all_mutations <- unique(all_mutations)
-        
-        # store the final results
-        if(length(all_mutations) > 0){
-          
-          # Subtract the codon middle coordinate from all mutation coordinates and take the absolute value,
-          # calculate the mean of these values, store this average_distance attribute in the list
-          outputList[[i]]["average_distance"] <- mean( abs(all_mutations - middlePos))
-          
-        } else {
-          
-          # there are no additional mutations so the distance from the middle of the target
-          outputList[[i]]["average_distance"] <- 0
-          
-        }
-        
-      }
-      
-      # Sort the list  according to this distance 
-      sortBy <- function(a, field) a[order(sapply(a, "[[", i = field))]
-      outputList <- sortBy(outputList, "average_distance")
-      
-    }
-    
-    # output the result
-    outputList
-  }
+  
   
   ########################################
   # Codon mutations code
@@ -4120,7 +3969,7 @@ server <- function(input, output, session) {
                         "<strong><font style='color: fuchsia'>", "sgRNA sequence",
                         "</font></strong>","  ", 
                         "<font style='font-size: 12pt;'>EXON  ","</font>", 
-                        "<font style='font-size: 12pt; font-weight: normal'>flanking", "</font>",
+                        "<font style='font-size: 12pt; font-weight: normal'>intron", "</font>",
                         "</p>",
                         "</div>", sep = "")
     
@@ -4211,14 +4060,6 @@ server <- function(input, output, session) {
           ## 1. collect variables for AS-PCR primer designs
           forw_primer_pos <- coords[["forw_primer"]]
           rev_primer_pos <- coords[["rev_primer"]]
-          
-          # sort the list
-          outputList <- sortOutputList(outputList, input$oligo_sorting)
-          
-          # subset the list according to the maximum number of oligos we can consider
-          if(input$max_number < length(outputList)){
-            outputList <- outputList[1:input$max_number]
-          }
           
           # iterate over the list items
           lapply(1:length(outputList), function(j) {
@@ -4465,11 +4306,6 @@ server <- function(input, output, session) {
           # the output for PAM/sgRNA only mutations
           isolate({ PAMonlyList <- PAM_mutations() })
           
-          # subset the list according to the maximum number of oligos we can consider
-          if(input$max_number < length(PAMonlyList)){
-            PAMonlyList <- PAMonlyList[1:input$max_number]
-          }
-          
           # get back the position data to the original state before off-setting
           codon_pos <- coords[["codon"]][1]: coords[["codon"]][2]
           pam_pos <- coords[["PAM"]][1]: coords[["PAM"]][2]
@@ -4478,14 +4314,6 @@ server <- function(input, output, session) {
           forw_primer_pos <- coords[["forw_primer"]]
           rev_primer_pos <- coords[["rev_primer"]]
           offset <- forw_primer_pos[1] -1
-          
-          # sort the list
-          PAMonlyList <- sortOutputList(PAMonlyList, input$oligo_sorting)
-          
-          # subset the list according to the maximum number of oligos we can consider
-          if(input$max_number < length(PAMonlyList)){
-            PAMonlyList <- PAMonlyList[1:input$max_number]
-          }
           
           # iterate each oligo design
           lapply(1:length(PAMonlyList), function(j) {
@@ -4732,26 +4560,12 @@ server <- function(input, output, session) {
           # list of silent REsite mutations designs
           isolate({ noPAM_REsitesList <- noPAMmuts_REsiteSilentMuts() })
           
-          # subset the list according to the maximum number of oligos we can consider
-          if(input$max_number < length(noPAM_REsitesList)){
-            noPAM_REsitesList <- noPAM_REsitesList[1:input$max_number]
-          }
-          
           ## 1. collect variables for AS-PCR primer designs
           forw_primer_pos <- coords[["forw_primer"]]
           rev_primer_pos <- coords[["rev_primer"]]
           
           # coordinates of the first and last target codon nucleotide change
           offset <- forw_primer_pos[1] - 1            
-          
-          # sort the list
-          noPAM_REsitesList <- sortOutputList(noPAM_REsitesList, input$oligo_sorting)
-          
-          # subset the list according to the maximum number of oligos we can consider
-          if(input$max_number < length(noPAM_REsitesList)){
-            noPAM_REsitesList <- noPAM_REsitesList[1:input$max_number]
-          }
-          
           
           # iterate over the list items
           lapply(1:length(noPAM_REsitesList), function(j) {
@@ -4982,25 +4796,12 @@ server <- function(input, output, session) {
           # codon mutations list
           isolate({ CodonMutsList <- codonMutations() })
           
-          # subset the list according to the maximum number of oligos we can consider
-          if(input$max_number < length(CodonMutsList)){
-            CodonMutsList <- CodonMutsList[1:input$max_number]
-          }
-          
           ## collect variables for AS-PCR primer designs
           forw_primer_pos <- coords[["forw_primer"]]
           rev_primer_pos <- coords[["rev_primer"]]
           
           # coordinates of the first and last target codon nucleotide change
           offset <- forw_primer_pos[1] - 1            
-          
-          # sort the list
-          CodonMutsList <- sortOutputList(CodonMutsList, input$oligo_sorting)
-          
-          # subset the list according to the maximum number of oligos we can consider
-          if(input$max_number < length(CodonMutsList)){
-            CodonMutsList <- CodonMutsList[1:input$max_number]
-          }
           
           # get back the position data to the original state before off-setting
           codon_pos <- coords[["codon"]][1]: coords[["codon"]][2]

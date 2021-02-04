@@ -1,0 +1,312 @@
+Report on lmna R471L knock-in design with selected options
+############################################################################
+Oligo	Sequence
+lmna R471L (GGG => TTA) oligo 1	GTTGACGAAGTCGACCTGGAAGGAAAATTTGTGTTACTTAATAACAAGTCTGACCAGGTG
+
+Forward AS-PCR primers
+Primer	Sequence	Tm
+lmna_R471L_for	ACCTGGAAGGAAAATTTGTGTTA	56
+lmna_WT_for	ACCTGGAAGGAAAATTTGTGCGG	61.5
+lmna_common_rev	AGCTGCCATAAGCAAAATCC	56.1
+
+Reverse AS-PCR primers
+Primer	Sequence	Tm
+lmna_common_for	CAGCACCAGTCGCACATC	58
+lmna_R471L_rev	CCTGGTCAGACTTGTTATTAAGTAA	55.8
+lmna_WT_rev	CCTGGTCAGACTTGTTATTAAGCCG	60.8
+
+AS-PCR Assays
+Assay	Forward primer	Reverse primer	Tanneal
+lmna R471L forward knock-in assay	lmna_R471L_for	lmna_common_rev	53
+lmna wild-type forward assay	lmna_WT_for	lmna_common_rev	53
+lmna R471L reverse knock-in assay	lmna_common_for	lmna_R471L_rev	53
+lmna wild-type reverse assay	lmna_common_for	lmna_WT_rev	55
+
+
+############################################################################
+Oligo	Sequence
+lmna R471L (GGG => TTG) oligo 2	GTTGACGAAGTCGACCTGGAAGGAAAATTTGTGTTGCTTAATAACAAGTCTGACCAGGTG
+
+Forward AS-PCR primers
+Primer	Sequence	Tm
+lmna_R471L_for	ACCTGGAAGGAAAATTTGTGTT	56.2
+lmna_WT_for	ACCTGGAAGGAAAATTTGTGCG	59.3
+lmna_common_rev	AGCTGCCATAAGCAAAATCC	56.1
+
+Reverse AS-PCR primers
+Primer	Sequence	Tm
+lmna_common_for	CAGCACCAGTCGCACATC	58
+lmna_R471L_rev	CCTGGTCAGACTTGTTATTAAGCAA	58.6
+lmna_WT_rev	CCTGGTCAGACTTGTTATTAAGCCG	60.8
+
+AS-PCR Assays
+Assay	Forward primer	Reverse primer	Tanneal
+lmna R471L forward knock-in assay	lmna_R471L_for	lmna_common_rev	53
+lmna wild-type forward assay	lmna_WT_for	lmna_common_rev	53
+lmna R471L reverse knock-in assay	lmna_common_for	lmna_R471L_rev	55
+lmna wild-type reverse assay	lmna_common_for	lmna_WT_rev	55
+
+
+############################################################################
+Oligo	Sequence
+lmna R471L (GGG => CTT) oligo 3	GTTGACGAAGTCGACCTGGAAGGAAAATTTGTTCTTCTTAATAACAAGTCTGACCAGGTG
+
+Enzyme Data
+Enzyme	Site pattern	Site	Fragments
+MboII	GAAGA	TCTTC	0.16kb + 0.19kb
+
+Forward AS-PCR primers
+Primer	Sequence	Tm
+lmna_R471L_for	ACCTGGAAGGAAAATTTGTTCTT	56.3
+lmna_WT_for	ACCTGGAAGGAAAATTTGTGCGG	61.5
+lmna_common_rev	AGCTGCCATAAGCAAAATCC	56.1
+
+Reverse AS-PCR primers
+Primer	Sequence	Tm
+lmna_common_for	CAGCACCAGTCGCACATC	58
+lmna_R471L_rev	ACCTGGTCAGACTTGTTATTAAGAA	57.4
+lmna_WT_rev	ACCTGGTCAGACTTGTTATTAAGCC	60.2
+
+AS-PCR Assays
+Assay	Forward primer	Reverse primer	Tanneal
+lmna R471L forward knock-in assay	lmna_R471L_for	lmna_common_rev	53
+lmna wild-type forward assay	lmna_WT_for	lmna_common_rev	53
+lmna R471L reverse knock-in assay	lmna_common_for	lmna_R471L_rev	54
+lmna wild-type reverse assay	lmna_common_for	lmna_WT_rev	55
+
+
+############################################################################
+Oligo	Sequence
+lmna R471L (GGG => CTT) oligo 4	GTTGACGAAGTCGACCTGGAAGGAAAATTTGTACTTCTTAATAACAAGTCTGACCAGGTG
+
+Enzyme Data
+Enzyme	Site pattern	Site	Fragments
+CviQI	GTAC	GTAC	0.17kb + 0.19kb
+RsaI	GTAC	GTAC	0.17kb + 0.19kb
+
+Forward AS-PCR primers
+Primer	Sequence	Tm
+lmna_R471L_for	ACCTGGAAGGAAAATTTGTACTT	55.8
+lmna_WT_for	ACCTGGAAGGAAAATTTGTGCGG	61.5
+lmna_common_rev	AGCTGCCATAAGCAAAATCC	56.1
+
+Reverse AS-PCR primers
+Primer	Sequence	Tm
+lmna_common_for	CAGCACCAGTCGCACATC	58
+lmna_R471L_rev	ACCTGGTCAGACTTGTTATTAAGAA	57.4
+lmna_WT_rev	ACCTGGTCAGACTTGTTATTAAGCC	60.2
+
+AS-PCR Assays
+Assay	Forward primer	Reverse primer	Tanneal
+lmna R471L forward knock-in assay	lmna_R471L_for	lmna_common_rev	53
+lmna wild-type forward assay	lmna_WT_for	lmna_common_rev	53
+lmna R471L reverse knock-in assay	lmna_common_for	lmna_R471L_rev	54
+lmna wild-type reverse assay	lmna_common_for	lmna_WT_rev	55
+
+
+############################################################################
+Oligo	Sequence
+lmna R471L (GGG => CTC) oligo 5	GTTGACGAAGTCGACCTGGAAGGAAAATTTGTGCTCCTTAATAACAAGTCTGACCAGGTG
+
+Enzyme Data
+Enzyme	Site pattern	Site	Fragments
+BsiHKAI	GWGCWC	GTGCTC	0.17kb + 0.19kb
+Bsp1286I	GDGCHC	GTGCTC	0.17kb + 0.19kb
+
+Forward AS-PCR primers
+Primer	Sequence	Tm
+lmna_R471L_for	CCTGGAAGGAAAATTTGTGCTC	57.3
+lmna_WT_for	CCTGGAAGGAAAATTTGTGCGG	59.9
+lmna_common_rev	AGCTGCCATAAGCAAAATCC	56.1
+
+Reverse AS-PCR primers
+Primer	Sequence	Tm
+lmna_common_for	CAGCACCAGTCGCACATC	58
+lmna_R471L_rev	CCTGGTCAGACTTGTTATTAAGGA	57.3
+lmna_WT_rev	CCTGGTCAGACTTGTTATTAAGCC	58.6
+
+AS-PCR Assays
+Assay	Forward primer	Reverse primer	Tanneal
+lmna R471L forward knock-in assay	lmna_R471L_for	lmna_common_rev	53
+lmna wild-type forward assay	lmna_WT_for	lmna_common_rev	53
+lmna R471L reverse knock-in assay	lmna_common_for	lmna_R471L_rev	54
+lmna wild-type reverse assay	lmna_common_for	lmna_WT_rev	55
+
+
+############################################################################
+Oligo	Sequence
+lmna R471L (GGG => CTC) oligo 6	GTTGACGAAGTCGACCTGGAAGGAAAATTTGTACTCCTTAATAACAAGTCTGACCAGGTG
+
+Enzyme Data
+Enzyme	Site pattern	Site	Fragments
+CviQI	GTAC	GTAC	0.17kb + 0.19kb
+RsaI	GTAC	GTAC	0.17kb + 0.19kb
+
+Forward AS-PCR primers
+Primer	Sequence	Tm
+lmna_R471L_for	ACCTGGAAGGAAAATTTGTACTC	56.1
+lmna_WT_for	ACCTGGAAGGAAAATTTGTGCGG	61.5
+lmna_common_rev	AGCTGCCATAAGCAAAATCC	56.1
+
+Reverse AS-PCR primers
+Primer	Sequence	Tm
+lmna_common_for	CAGCACCAGTCGCACATC	58
+lmna_R471L_rev	CCTGGTCAGACTTGTTATTAAGGA	57.3
+lmna_WT_rev	CCTGGTCAGACTTGTTATTAAGCC	58.6
+
+AS-PCR Assays
+Assay	Forward primer	Reverse primer	Tanneal
+lmna R471L forward knock-in assay	lmna_R471L_for	lmna_common_rev	53
+lmna wild-type forward assay	lmna_WT_for	lmna_common_rev	53
+lmna R471L reverse knock-in assay	lmna_common_for	lmna_R471L_rev	54
+lmna wild-type reverse assay	lmna_common_for	lmna_WT_rev	55
+
+
+############################################################################
+Oligo	Sequence
+lmna R471L (GGG => CTC) oligo 7	GTTGACGAAGTCGACCTGGAAGGAAAATTTGTGCTCTTGAATAACAAGTCTGACCAGGTG
+
+Enzyme Data
+Enzyme	Site pattern	Site	Fragments
+Hpy188III	TCNNGA	TCTTGA	0.18kb + 0.18kb
+BsiHKAI	GWGCWC	GTGCTC	0.17kb + 0.19kb
+Bsp1286I	GDGCHC	GTGCTC	0.17kb + 0.19kb
+
+Forward AS-PCR primers
+Primer	Sequence	Tm
+lmna_R471L_for	CCTGGAAGGAAAATTTGTGCTC	57.3
+lmna_WT_for	CCTGGAAGGAAAATTTGTGCGG	59.9
+lmna_common_rev	AGCTGCCATAAGCAAAATCC	56.1
+
+Reverse AS-PCR primers
+Primer	Sequence	Tm
+lmna_common_for	CAGCACCAGTCGCACATC	58
+lmna_R471L_rev	CCTGGTCAGACTTGTTATTCAAGA	57.8
+lmna_WT_rev	CCTGGTCAGACTTGTTATTAAGCC	58.6
+
+AS-PCR Assays
+Assay	Forward primer	Reverse primer	Tanneal
+lmna R471L forward knock-in assay	lmna_R471L_for	lmna_common_rev	53
+lmna wild-type forward assay	lmna_WT_for	lmna_common_rev	53
+lmna R471L reverse knock-in assay	lmna_common_for	lmna_R471L_rev	55
+lmna wild-type reverse assay	lmna_common_for	lmna_WT_rev	55
+
+
+############################################################################
+Oligo	Sequence
+lmna R471L (GGG => CTC) oligo 8	GTTGACGAAGTCGACCTGGAAGGAAAATTTGTGCTCCTCAATAACAAGTCTGACCAGGTG
+
+Enzyme Data
+Enzyme	Site pattern	Site	Fragments
+BseRI	GAGGAG	CTCCTC	0.16kb + 0.19kb
+BsiHKAI	GWGCWC	GTGCTC	0.17kb + 0.19kb
+Bsp1286I	GDGCHC	GTGCTC	0.17kb + 0.19kb
+
+Forward AS-PCR primers
+Primer	Sequence	Tm
+lmna_R471L_for	CCTGGAAGGAAAATTTGTGCTC	57.3
+lmna_WT_for	CCTGGAAGGAAAATTTGTGCGG	59.9
+lmna_common_rev	AGCTGCCATAAGCAAAATCC	56.1
+
+Reverse AS-PCR primers
+Primer	Sequence	Tm
+lmna_common_for	CAGCACCAGTCGCACATC	58
+lmna_R471L_rev	CTGGTCAGACTTGTTATTGAGGA	57.2
+lmna_WT_rev	CTGGTCAGACTTGTTATTAAGCC	56.4
+
+AS-PCR Assays
+Assay	Forward primer	Reverse primer	Tanneal
+lmna R471L forward knock-in assay	lmna_R471L_for	lmna_common_rev	53
+lmna wild-type forward assay	lmna_WT_for	lmna_common_rev	53
+lmna R471L reverse knock-in assay	lmna_common_for	lmna_R471L_rev	54
+lmna wild-type reverse assay	lmna_common_for	lmna_WT_rev	53
+
+
+############################################################################
+Oligo	Sequence
+lmna R471L (GGG => CTC) oligo 9	GTTGACGAAGTCGACCTGGAAGGAAAATTTGTGCTCCTGAATAACAAGTCTGACCAGGTG
+
+Enzyme Data
+Enzyme	Site pattern	Site	Fragments
+Hpy188III	TCNNGA	TCCTGA	0.18kb + 0.18kb
+BsiHKAI	GWGCWC	GTGCTC	0.17kb + 0.19kb
+Bsp1286I	GDGCHC	GTGCTC	0.17kb + 0.19kb
+
+Forward AS-PCR primers
+Primer	Sequence	Tm
+lmna_R471L_for	CCTGGAAGGAAAATTTGTGCTC	57.3
+lmna_WT_for	CCTGGAAGGAAAATTTGTGCGG	59.9
+lmna_common_rev	AGCTGCCATAAGCAAAATCC	56.1
+
+Reverse AS-PCR primers
+Primer	Sequence	Tm
+lmna_common_for	CAGCACCAGTCGCACATC	58
+lmna_R471L_rev	CTGGTCAGACTTGTTATTCAGGA	57.2
+lmna_WT_rev	CTGGTCAGACTTGTTATTAAGCC	56.4
+
+AS-PCR Assays
+Assay	Forward primer	Reverse primer	Tanneal
+lmna R471L forward knock-in assay	lmna_R471L_for	lmna_common_rev	53
+lmna wild-type forward assay	lmna_WT_for	lmna_common_rev	53
+lmna R471L reverse knock-in assay	lmna_common_for	lmna_R471L_rev	54
+lmna wild-type reverse assay	lmna_common_for	lmna_WT_rev	53
+
+
+############################################################################
+Oligo	Sequence
+lmna R471L (GGG => CTA) oligo 10	GTTGACGAAGTCGACCTGGAAGGAAAATTTGTACTACTTAATAACAAGTCTGACCAGGTG
+
+Enzyme Data
+Enzyme	Site pattern	Site	Fragments
+CviQI	GTAC	GTAC	0.17kb + 0.19kb
+RsaI	GTAC	GTAC	0.17kb + 0.19kb
+
+Forward AS-PCR primers
+Primer	Sequence	Tm
+lmna_R471L_for	GACCTGGAAGGAAAATTTGTACTA	55.9
+lmna_WT_for	GACCTGGAAGGAAAATTTGTGCGG	62.1
+lmna_common_rev	AGCTGCCATAAGCAAAATCC	56.1
+
+Reverse AS-PCR primers
+Primer	Sequence	Tm
+lmna_common_for	CAGCACCAGTCGCACATC	58
+lmna_R471L_rev	ACCTGGTCAGACTTGTTATTAAGTA	56.9
+lmna_WT_rev	ACCTGGTCAGACTTGTTATTAAGCC	60.2
+
+AS-PCR Assays
+Assay	Forward primer	Reverse primer	Tanneal
+lmna R471L forward knock-in assay	lmna_R471L_for	lmna_common_rev	53
+lmna wild-type forward assay	lmna_WT_for	lmna_common_rev	53
+lmna R471L reverse knock-in assay	lmna_common_for	lmna_R471L_rev	54
+lmna wild-type reverse assay	lmna_common_for	lmna_WT_rev	55
+
+
+############################################################################
+Oligo	Sequence
+lmna R471L (GGG => CTG) oligo 11	GTTGACGAAGTCGACCTGGAAGGAAAATTTGTACTGCTTAATAACAAGTCTGACCAGGTG
+
+Enzyme Data
+Enzyme	Site pattern	Site	Fragments
+CviQI	GTAC	GTAC	0.17kb + 0.19kb
+RsaI	GTAC	GTAC	0.17kb + 0.19kb
+
+Forward AS-PCR primers
+Primer	Sequence	Tm
+lmna_R471L_for	GACCTGGAAGGAAAATTTGTACT	56.1
+lmna_WT_for	GACCTGGAAGGAAAATTTGTGCG	60
+lmna_common_rev	AGCTGCCATAAGCAAAATCC	56.1
+
+Reverse AS-PCR primers
+Primer	Sequence	Tm
+lmna_common_for	CAGCACCAGTCGCACATC	58
+lmna_R471L_rev	CCTGGTCAGACTTGTTATTAAGCA	58.1
+lmna_WT_rev	CCTGGTCAGACTTGTTATTAAGCC	58.6
+
+AS-PCR Assays
+Assay	Forward primer	Reverse primer	Tanneal
+lmna R471L forward knock-in assay	lmna_R471L_for	lmna_common_rev	53
+lmna wild-type forward assay	lmna_WT_for	lmna_common_rev	53
+lmna R471L reverse knock-in assay	lmna_common_for	lmna_R471L_rev	55
+lmna wild-type reverse assay	lmna_common_for	lmna_WT_rev	55
+
+

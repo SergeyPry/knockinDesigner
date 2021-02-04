@@ -15,6 +15,7 @@ library(shinyFeedback)
 library(shinycssloaders)
 library(readr)
 
+
 # Define UI for application that draws a histogram
 ui <- shinyUI(fluidPage(
   
@@ -34,8 +35,8 @@ ui <- shinyUI(fluidPage(
       HTML('<button type="button" class="btn btn-primary" style="width: 100%; font-size: 14px">Gene mutation</button><p></p>'),
       
       fluidRow(
-        column(5, textInput("gene", label = "Gene name (optional)", value = "lmna")),
-        column(6, textInput("Mutation", label = "Mutation (e.g. A123C)", value = "R471L"))
+        column(5, textInput("gene", label = "Gene name (optional)", value = "lef1")),
+        column(6, textInput("Mutation", label = "Mutation (e.g. A123C)", value = "G179V"))
       ),
       
       HTML('<button type="button" class="btn btn-primary" style="width: 100%; font-size: 14px">Gene sequence data</button><p></p>'),
@@ -46,43 +47,42 @@ ui <- shinyUI(fluidPage(
                            
                            fluidRow(
                              
-                             column(12,textAreaInput("CDS", "atggagactccaggtcagaaacgaagcagccgcggtggggtgaccaatgtcctgtcccctacccgcatctctcgattgcaggaaaaggaggacttgagcaacctgaatgaccgtctggcggtctacatcgataaggttcgctctctggaggtggagaacgcaggtctgcgtatgcgcatcactgaatccgagacggagatcagccgggagctgagtggcatgaaagcggcgtacgaggctgaactcgcagatgccaggaaaacactggactcggtggccaaagaacgagccagactgcaactggagctcagcaaagtgcgtgaggactacaaggagctgaaggccaggaacggtaagaaagaagcagatctggaatctgctctggccaggctgaaggatctggagtctctactgaactccaaggacgcgtctctctccacagctctgggggagaagagaacactggaggtggaagtcagagatttgaaagcccagctggccaagttggagggcagtctaaacgatgcaaagaagcagctgcaggatgaaatgctgcgacgtgtggatgccgaaaaccgaatccagacactgaaagaggagctggagttccagaagaacatctactctgaggagctccgtgagtctaagcgcagatatgagtcacgtgtggtggagattgacagcggccgccagcaggattatgagagtaaactggccgacgctttaactgacctccgcaaccaacatgaagagcagcttcgcatctacaaggaagaaatcgagaagacctacaactccaagctggaaaatgctcgctcttccgctgaaaggaacagtcatctggttggagccgcccatgaggaactgcagcaaacacgtgttaggatggagggtgtgagttcacagctcagtcagctgcagaaacagttggctgctcgagaggcgaagatccgcgagctggaagaggccctgtccagagagagggatattttgcgccgtcgtctggaggacaaggagaaggagatggctgagatgagacagcgcatgcagcaacagctggacgagtaccaggagctgctagacatcaaactcgctctggacatggagatcagtgcctacaggaagcttctggagggagaggaggaaagacttcgtctgtctccgagtcctcctcctgctcgtggggtgacggtgacccgctcctctggttcaggctctcacactcgtgtggttcagagcagcaccagtcgcacatcctccggcagcgccaagaaacggcgcttgaatgataacgacagtgatgcctccagtgtggttggaggaacagtgacccgcacacggatctcccagcaagcctcagccagcggccgcgtcaccgttgacgaagtcgacctggaaggaaaatttgtgcggcttaataacaagtctgaccaggatcagtctctgggtcactggcaggtgaagaggcagattggttctggcactcccatcgtctacaagtttccacccaaatttaacctgaaggcagggcagactgtcacgatctgggctgcaggagccggaggcacccacagtcctcccagtgacctggtgtggaagacccagaactcatggggcagcggtgatttgttccagaccaccctcatcagctccagcggagaggaaatggcgatgagaaaagtcacacgtactctgttccaggatgaggaagatgatgagatggcggctcacagcacatgcggagacagcgagtataacctgcgcagccgtactgtgttgtgcggctcgtgtggtcagccgtccgacaggaacagcagttgtgtttctgccagctcaggagtgtccagcgcatctcgctccttcagcagtggaggaggaggaggactcactgaagcttttgtgtcaccctctcactttattgtgagcaacgacaaacccagacaggtgtgtactgtatgtgtggagggcacttttgtttgtttgttaaatagcattacattgtggttggtttctctcttttttgaatga", label ="Coding DNA sequence", height = "100px")),
-                             column(12,textAreaInput("exon", "acttcgtctgtctccgagtcctcctcctgctcgtggggtgacggtgacccgctcctctggttcaggctctcacactcgtgtggttcagagcagcaccagtcgcacatcctccggcagcgccaagaaacggcgcttgaatgataacgacagtgatgcctccagtgtggttggaggaacagtgacccgcacacggatctcccagcaagcctcagccagcggccgcgtcaccgttgacgaagtcgacctggaaggaaaatttgtgcggcttaataacaagtctgaccag", label ="Mutation site exon sequence",  height = "50px"))),
-    
+                             column(12,textAreaInput("CDS", "ATGCCGCAGTTGTCAGGTGGAGGAGGCGGCGGGGACCCGGAGCTCTGCGCCACCGATGAAATGATCCCGTTCAAAGACGAGGGAGACCCGCACAAGGAGCAAATCTTCGCGGAGATCAGCCACTCCGAGGAGGAGGGAGACTTAGCGGAGATCAAATCATCTCTGGTCAACGAGACAGAAATCAGTCCCAACAGTAACAGTCACGACGCAGCTAGACAGTCCCAAATAACACCAGACTCTTACCATGAGAAGCACAGGGACCATCCGGATGATGGCAAACTCCAAGACTTGTACAGCAAAGGCCACCCGTACCCGAGTTATCCCGGATACATCATGATGACCAATATGAACAATGAACCCTACATGAACAACGGCTCTCTCTCGCCTCCCATTCCCAGAACGTCGAATAAGGTGCCGGTGGTCCAGCCGTCCCATGCCGTTCACCCACTCACCCCTCTGATCACATACAGTGACGAGCACTTCGCCCCCGGCCCACATTCGGGACACCACCCACAGGATGTCAACCCCAAGCAAGGTATGCCCAGGCATCATCCTGGACCAGACATTCCCAATTTCTATCCCCTTTCCCCGGGGGGAGTTGGACAGATGACCCCTCCTCTGGGTTGGTTCTCACATCACATGGTACCAGGCCCTCCTGGACCCCACGCCACAGGAATCCCCCATCCAGCCATTGTCAACCCACAGGTGAAACAGGAGCACGACACAGACCTGATGCACATGAAACCTCAGCACGAGCAGAGAAAGGAGCAGGAGCCCAAAAGACCTCACATCAAGAAACCTCTAAACGCTTTCATGCTGTATATGAAAGAGATGCGCGCCAATGTGGTGGCCGAATGCACGCTGAAGGAGAGCGCCGCTATCAATCAGATCCTCGGCCGGAGGTGGCATGCTTTATCTCGGGAAGAGCAAGCTAAGTATTACGAATTAGCCCGCAAGGAACGGCAGCTCCATATGCAGCTTTACCCAGGATGGTCTGCCAGAGACAATTATGGAAAGAAAAAAAAGCGGAAGAGGGAAAAGATCCAGGAACCTGCTTCAGGTACAGGCCAGAGAATGAAAACGGCGTACATCTGA", label ="Coding DNA sequence", height = "100px")),
+                             column(12,textAreaInput("exon", "GTATGCCCAGGCATCATCCTGGACCAGACATTCCCAATTTCTATCCCCTTTCCCCGGGGGGAGTTGGACAGATGACCCCTCCTCTGGGTTG", label ="Mutation site exon sequence",  height = "50px")),
+                           ), 
+                           
+                           
                            fluidRow(
-                             
-                             column(12, p(class = "panel-title",style="font-size: 16px; color: blue", "Optional flanking sequences", "(one/both primers bind the exon):"), p()),
-                           ),
-                                                  
-                           fluidRow(
-                   
-                             column(12,textAreaInput("intron5", "aaccatatatgaattgcgtcaacaaaagtaactgcatactgtacatcacatttgctttggaaaactcaactgccttacacatttacttaccattttgcccccattgtctctatttag", label ="5' flanking fragment (>100 bp if possible)", height = "50px")),
-                             column(12,textAreaInput("intron3", "gtgagaacaaaaagccaccaatacaatgattgaagtgccatgaaatgtataactttgttcgatttctggcataatttaaacttaaacatgtagagagggcgagatatagagaagcttctccccctttaaaaatagccaataggattttgcttatggcagcttaaaatgctgagcta", label ="3' flanking fragment (>100 bp if possible)", height = "50px"))
-                             
+                             column(12,textAreaInput("intron5", "caactgacatccataagcagcatgaatcatatcagcggggcttattagaacagcgcaagagcattcctaattatcccatgatccgcttatgcaccgcaccggaccgcagggcccgactgtgcagcacacattgatgccacactgctgttctccagatgtgtctgtctcacactaacacacgccactgtcgcttttataatactctgcttcttcgatcctgaagcag", label ="5' flanking fragment (>100 bp if possible) - optional*", height = "50px")),
+                             column(12,textAreaInput("intron3", "gtaagtgcacttatatataatgtatatgtatgtgtatatatgtgtgtgtattattttaacatggatcatcaatagattacgattagctattaattgttcatgacacatcc", label ="3' flanking fragment (>100 bp if possible) - optional*", height = "50px")),
+                             column(12, p("*Flanking sequences are optional as one or both primers may bind the exon", style="color:blue; font-size: 14px"))
                            )
+                           
                   ),
                   
                   tabPanel(p(class = "panel-title",  style="width: 100%, font-size: 14px; color: blue", "ID-based input"),
                            tags$p(),
                            
                            fluidRow(  column(5, textInput("transcriptID", "Ensembl Transcript ID")) )
-                  )
+                 )
                   
       ), 
       
       HTML('<button type="button" class="btn btn-primary" style="width: 100%; font-size: 14px">PCR primers</button><p></p>'),
       
       fluidRow(
-        column(6,textInput("forw_primer", "cagcaccagtcgcacatc", label ="Forward Primer")),
-        column(6,textInput("rev_primer", "agctgccataagcaaaatcc", label ="Reverse Primer"))
+        column(6,textInput("forw_primer", "caactgacatccataagcagca", label ="Forward Primer")),
+        column(6,textInput("rev_primer", "ggatgtgtcatgaacaattaatagc", label ="Reverse Primer"))
       ),
+      
+      
       
       
       HTML('<button type="button" class="btn btn-primary" style="width: 100%; font-size: 14px">Guide RNA parameters</button><p></p>'),
       
       fluidRow(
         column(6, textInput("sgRNA_seq", label = "sgRNA sequence", 
-                            value = "cctggaaggaaaatttgtg")),
+                            value = "atcctgaagcaggtatgccc")),
         column(6,
                selectInput("oriented", label = "sgRNA orientation", 
                            choices = list("sense" = "sense", "antisense" = "anti"), selected = 1))
@@ -101,8 +101,7 @@ ui <- shinyUI(fluidPage(
                                               "FnCas12a: TTN" = "TTN",
                                               "FnCas12a: YTN" = "YTN",
                                               "Mb3Cas12a: NTTN" = "NTTN",
-                                              "ErCas12a: YTTN" = "YTTN"), selected = 1))), 
-      
+                                              "ErCas12a: YTTN" = "YTTN"), selected = 1))),      
       
       
       HTML('<button type="button" class="btn btn-primary" style="width: 100%; font-size: 14px">Oligo options</button><p></p>'),
@@ -124,12 +123,13 @@ ui <- shinyUI(fluidPage(
         
         column(6, radioButtons("mutatePAM", "Synonymous codon mutations of PAM or sgRNA spacer?",
                                c("Yes" = "yes", "No" = "no")),
-               helpText("PAM/sgRNA codon mutations are only suitable for Cas9 and not for Cas12a/Cpf1 enzymes.") ),
+               helpText("PAM/sgRNA codon mutations are only suitable for Cas9 and not for Cas12a/Cpf1 enzymes.")
+        ),
         column(6, radioButtons("REsites", "Introduce restriction enzyme sites by synonymous codon mutations?",
                                c("Yes" = "yes", "No" = "no")))
         
       ),
-      
+
       fluidRow(
         
         column( 6, sliderInput("max_number", "Maximum oligo number", min = 5, max = 50, value = 20, step = 5)),
@@ -137,7 +137,6 @@ ui <- shinyUI(fluidPage(
                                 c("No sorting" = "no", "Random" = "random", "Average mutation-codon distance" = "average_dist") ))
       ),
       
-
       actionButton("run", "Submit")
     ), # end of sidebarPanel      
     
@@ -175,10 +174,10 @@ ui <- shinyUI(fluidPage(
                   )
                   
       )
-    ) # end of mainPanel  
+
+    ) # end of mainPanel
   )
 ))
-
 
 # Define server logic to design oligos for point mutation knock-in
 server <- function(input, output, session) {
