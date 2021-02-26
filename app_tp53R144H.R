@@ -1,16 +1,17 @@
 # knockinDesigner shiny app
 
+library(BiocManager)
+options(repos = BiocManager::repositories())
+
 library(stringr)
 library(Biostrings)
 library(seqinr)
-library(biomaRt)
-library(DECIPHER)
 library(TmCalculator)
 library(httr)
 library(jsonlite)
 library(xml2)
-library(shiny)
 library(shinyjs)
+library(shiny)
 library(shinyFeedback)
 library(shinycssloaders)
 library(readr)
@@ -18,9 +19,8 @@ library(readr)
 # Define UI for application that draws a histogram
 ui <- shinyUI(fluidPage(
   
-  useShinyFeedback(), # include shinyFeedback
-  
   useShinyjs(),
+  useShinyFeedback(), # include shinyFeedback
   
   tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "bootstrap.css"),
             tags$style(HTML(".shiny-output-error-validation {color: green;font-size: 20px;}"))),
@@ -157,7 +157,7 @@ ui <- shinyUI(fluidPage(
                   tabPanel(p(class = "panel-title",style="width: 100%, font-size: 14px; color: blue", "Results"), value = "Results", 
                           
                            conditionalPanel(
-                             condition = "input.run == TRUE",
+                             condition = "input.run == true",
                              
                              withSpinner(uiOutput('strategyCoords'), type = 4), 
                              
@@ -1050,7 +1050,7 @@ server <- function(input, output, session) {
       trID <- unlist(str_split(trID, '\\.'))[1]
       
       # shiny::validate the Ensembl transcript ID
-      shiny::validate( need(str_detect(trID, "ENS[A-Z]{0,3}T[0-9]{11}"), "Please enter a valid Ensembl Transcript ID") )
+      #shiny::validate( need(str_detect(trID, "ENS[A-Z]{0,3}T[0-9]{11}"), "Please enter a valid Ensembl Transcript ID") )
       
       #########################################
       # get transcript information
@@ -1162,6 +1162,7 @@ server <- function(input, output, session) {
       # iterate over the whole list and store starts and ends sep
       exon_coords <- c()
       
+      
       # iterate over all exon matches
       for(j in 1:length(exon_cDNA_matches)){
         
@@ -1172,14 +1173,14 @@ server <- function(input, output, session) {
           # check all rows and test each one to be continuation of cDNA
           for(m in 1: nrow(exon_cDNA_matches[[j]])){
             
-            if(as.integer(exon_cDNA_matches[[j]][m,'start']) == (exon_coords[-1] + 1) ){
+            if(as.integer(exon_cDNA_matches[[j]][m,'start']) == (exon_coords[length(exon_coords)] + 1) ){
               exon_coords <- c(exon_coords, as.vector(exon_cDNA_matches[[j]][m,]) )
+              
             }
             
           }# end of iteration of specific exon matches
         } # end of else
       } # end of list iteration
-      
       
       df <- data.frame(matrix(exon_coords, nrow=length(exon_cDNA_matches), byrow=T))
       
@@ -1279,6 +1280,7 @@ server <- function(input, output, session) {
         # obtain sgRNA
         sgRNA <- toupper(str_trim(input$sgRNA_seq))        
         
+        correct_i <- 0
         
         # 1. Generate flanking sequences to both candidate exons
         for(i in 1:2){
@@ -1386,7 +1388,7 @@ server <- function(input, output, session) {
         # determine the phase
         if(correct_i == 1){
           phase <- phase1
-        }else{
+        }else if(correct_i == 2){
           phase <- phase2
         }
         
@@ -1631,17 +1633,30 @@ server <- function(input, output, session) {
     alignment <- pairwiseAlignment(exon, CDS, type = "overlap", substitutionMatrix = mat,
                                    gapOpening = 3, gapExtension = 2)
     
+    
     #define the coordinates for the exon within the CDS
-    exonStartCDS <- start(subject(alignment))
-    exonEndCDS <- end(subject(alignment))
+    if( start(pattern(alignment)) <= start(subject(alignment)) ){
+      exonStartCDS <- start(subject(alignment))
+      exonEndCDS <- end(subject(alignment))
+    } else{
+      exonStartCDS <- start(pattern(alignment))
+      exonEndCDS <- end(pattern(alignment))
+    }
     
     # test if the codon is fully inside the exon
     if((codonCDS_pos[1] >= exonStartCDS) & (codonCDS_pos[2] <= exonEndCDS)  ){
       
-      # calculate the position of the codon inside an exon by the usual procedure
-      exonCodonPos <- codonCDS_pos - exonStartCDS +1      
+      # CDS is bigger than the exon 
+      if( start(pattern(alignment)) <= start(subject(alignment))  ){
+        # calculate the position of the codon inside an exon by the usual procedure
+        exonCodonPos <- codonCDS_pos - exonStartCDS +1      
+        codonPhase <- 0
+        
+      } else{ # CDS is smaller than the exon or the first exon has 3'UTR
+        exonCodonPos <- codonCDS_pos + exonStartCDS - 1
+        codonPhase <- 0
+      }
       
-      codonPhase <- 0
       
     }else{ # the target codon overlaps two exons and the current target exon includes only a part of the codon
       
@@ -2588,7 +2603,7 @@ server <- function(input, output, session) {
         if(!PAM_muts_flag){
           
           # perform a search for overlapping codons based on sgRNA orientation        
-          if(input$oriented == "antisense"){
+          if(input$oriented == "anti"){
             
             # iterate over all_codons inside 
             for(codon in all_codons){
@@ -5744,6 +5759,21 @@ server <- function(input, output, session) {
     
   })
   
+  observeEvent(input$max_number, {
+    
+    if(input$run >= 1){
+      shinyjs::runjs("window.scrollTo(0,0);")  
+    }
+    
+  })
+  
+  observeEvent(input$oligo_sorting, {
+    
+    if(input$run >= 1){
+      shinyjs::runjs("window.scrollTo(0,0);")  
+    }
+    
+  }) 
   
 } # end of server
 
