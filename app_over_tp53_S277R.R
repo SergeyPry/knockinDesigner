@@ -3,8 +3,6 @@
 library(stringr)
 library(Biostrings)
 library(seqinr)
-library(biomaRt)
-library(DECIPHER)
 library(TmCalculator)
 library(httr)
 library(jsonlite)
@@ -68,15 +66,6 @@ ui <- shinyUI(fluidPage(
                   
       ), 
       
-      HTML('<button type="button" class="btn btn-primary" style="width: 100%; font-size: 14px">PCR primers</button><p></p>'),
-      
-      fluidRow(
-        column(6,textInput("forw_primer", "ttggactcatctcgcatttg", label ="Forward Primer")),
-        column(6,textInput("rev_primer", "ctcccctcaggtcgtaatgt", label ="Reverse Primer"))
-      ),
-      
-      
-      
       
       HTML('<button type="button" class="btn btn-primary" style="width: 100%; font-size: 14px">Guide RNA parameters</button><p></p>'),
       
@@ -102,6 +91,18 @@ ui <- shinyUI(fluidPage(
                                               "FnCas12a: YTN" = "YTN",
                                               "Mb3Cas12a: NTTN" = "NTTN",
                                               "ErCas12a: YTTN" = "YTTN"), selected = 1))),      
+      
+      
+      
+      HTML('<button type="button" class="btn btn-primary" style="width: 100%; font-size: 14px">PCR primers</button><p></p>'),
+      
+      helpText("The primers should define an amplicon around the mutation site",
+               "and ideally used before to verify guide RNA activity."),
+      
+      fluidRow(
+        column(6,textInput("forw_primer", "ttggactcatctcgcatttg", label ="Forward Primer")),
+        column(6,textInput("rev_primer", "ctcccctcaggtcgtaatgt", label ="Reverse Primer"))
+      ),
       
       
       HTML('<button type="button" class="btn btn-primary" style="width: 100%; font-size: 14px">Oligo options</button><p></p>'),
@@ -159,8 +160,17 @@ ui <- shinyUI(fluidPage(
                              
                              tags$p(),
                              
-                             # download results
-                             withSpinner(downloadButton(outputId = "download_oligos", label = "Download design data", class="btn btn-success",  style="width: 60%; font-size: 18px"), type = 1),
+                             fluidRow(
+                               column( 4, withSpinner(downloadButton(outputId = "download_oligos", label = "Download oligo designs", class="btn btn-success",  style="width: 90%; font-size: 18px; text-transform: none;"), type = 0)),             # oligo results
+                               column( 4, withSpinner(downloadButton(outputId = "download_prime_design", label = "Download PrimeDesign inputs", class="btn btn-success",  style="width: 95%; font-size: 18px; text-transform: none;"), type = 0)), # PrimeDesign inputs
+                               column( 4, withSpinner(downloadButton(outputId = "download_pegfinder", label = "Download pegFinder inputs", class="btn btn-success",  style="width: 95%; font-size: 18px; text-transform: none;"), type = 0)),
+                             ),
+                             
+                             fluidRow(
+                               column( 4, " "), # placeholder                                      
+                               column( 4, tags$a(href = "https://drugthatgene.pinellolab.partners.org/", "* PrimeDesign link ", style = "font-size: 16px; color: blue;")), 
+                               column( 4, tags$a(href = "http://pegfinder.sidichenlab.org/", "** pegFinder link", style = "font-size: 16px; color: blue;")),
+                             ),
                              
                              tags$p(),
                              
@@ -1047,7 +1057,7 @@ server <- function(input, output, session) {
       trID <- unlist(str_split(trID, '\\.'))[1]
       
       # shiny::validate the Ensembl transcript ID
-      shiny::validate( need(str_detect(trID, "ENS[A-Z]{0,3}T[0-9]{11}"), "Please enter a valid Ensembl Transcript ID") )
+      #shiny::validate( need(str_detect(trID, "ENS[A-Z]{0,3}T[0-9]{11}"), "Please enter a valid Ensembl Transcript ID") )
       
       #########################################
       # get transcript information
@@ -1159,6 +1169,7 @@ server <- function(input, output, session) {
       # iterate over the whole list and store starts and ends sep
       exon_coords <- c()
       
+      
       # iterate over all exon matches
       for(j in 1:length(exon_cDNA_matches)){
         
@@ -1169,14 +1180,14 @@ server <- function(input, output, session) {
           # check all rows and test each one to be continuation of cDNA
           for(m in 1: nrow(exon_cDNA_matches[[j]])){
             
-            if(as.integer(exon_cDNA_matches[[j]][m,'start']) == (exon_coords[-1] + 1) ){
+            if(as.integer(exon_cDNA_matches[[j]][m,'start']) == (exon_coords[length(exon_coords)] + 1) ){
               exon_coords <- c(exon_coords, as.vector(exon_cDNA_matches[[j]][m,]) )
+              
             }
             
           }# end of iteration of specific exon matches
         } # end of else
       } # end of list iteration
-      
       
       df <- data.frame(matrix(exon_coords, nrow=length(exon_cDNA_matches), byrow=T))
       
@@ -1276,6 +1287,7 @@ server <- function(input, output, session) {
         # obtain sgRNA
         sgRNA <- toupper(str_trim(input$sgRNA_seq))        
         
+        correct_i <- 0
         
         # 1. Generate flanking sequences to both candidate exons
         for(i in 1:2){
@@ -1383,7 +1395,7 @@ server <- function(input, output, session) {
         # determine the phase
         if(correct_i == 1){
           phase <- phase1
-        }else{
+        }else if(correct_i == 2){
           phase <- phase2
         }
         
@@ -1628,17 +1640,30 @@ server <- function(input, output, session) {
     alignment <- pairwiseAlignment(exon, CDS, type = "overlap", substitutionMatrix = mat,
                                    gapOpening = 3, gapExtension = 2)
     
+    
     #define the coordinates for the exon within the CDS
-    exonStartCDS <- start(subject(alignment))
-    exonEndCDS <- end(subject(alignment))
+    if( start(pattern(alignment)) <= start(subject(alignment)) ){
+      exonStartCDS <- start(subject(alignment))
+      exonEndCDS <- end(subject(alignment))
+    } else{
+      exonStartCDS <- start(pattern(alignment))
+      exonEndCDS <- end(pattern(alignment))
+    }
     
     # test if the codon is fully inside the exon
     if((codonCDS_pos[1] >= exonStartCDS) & (codonCDS_pos[2] <= exonEndCDS)  ){
       
-      # calculate the position of the codon inside an exon by the usual procedure
-      exonCodonPos <- codonCDS_pos - exonStartCDS +1      
+      # CDS is bigger than the exon 
+      if( start(pattern(alignment)) <= start(subject(alignment))  ){
+        # calculate the position of the codon inside an exon by the usual procedure
+        exonCodonPos <- codonCDS_pos - exonStartCDS +1      
+        codonPhase <- 0
+        
+      } else{ # CDS is smaller than the exon or the first exon has 3'UTR
+        exonCodonPos <- codonCDS_pos + exonStartCDS - 1
+        codonPhase <- 0
+      }
       
-      codonPhase <- 0
       
     }else{ # the target codon overlaps two exons and the current target exon includes only a part of the codon
       
@@ -2110,6 +2135,67 @@ server <- function(input, output, session) {
     # output the result
     outputList
   }
+  
+  # function to 
+  writePEdesigns <- function(gene, mutation, orig_codon, coords, outputList, forw_primer_pos, rev_primer_pos, codon_pos){
+    
+    ################# PrimeDesign and pegFinder inputs file generation ################
+    
+    # write the report header in such a way that it overwrites the previous data
+    write_lines(paste("PrimeDesign input sequences for", gene, mutation, "knock-in designs"), "PrimeDesign_inputs.txt", append = FALSE)
+    
+    # write the report header in such a way that it overwrites the previous data
+    write_lines(paste("pegFinder input sequences for", gene, mutation, "knock-in designs"), "pegFinder_inputs.txt", append = FALSE)
+    
+    # get site assay wild-type sequence
+    wt_site_assay = toupper(substr(coords[["sequence"]], forw_primer_pos[1], rev_primer_pos[2]))
+    
+    oligo_name <- paste(">", gene, " wild-type site assay sequence", sep='')
+    
+    # trim wt sequence
+    wt_site_assay_trim <- substr(wt_site_assay, max(1, codon_pos[1]-248), min(nchar(wt_site_assay), codon_pos[1] + 248) )
+    
+    # write the lines for this sequence to the file
+    write_lines(c(oligo_name, wt_site_assay_trim), "pegFinder_inputs.txt", append = TRUE)
+    
+    
+    # iterate to write the sequences to file for PrimeDesign
+    for(i in 1:length(outputList)){
+      
+      # get mutant site assay sequence
+      sequence <- toupper(outputList[[i]][["site_assay"]])
+      
+      # get all coordinates of differences
+      coords_diff <-  getPrimerDiffs(wt_site_assay, sequence)
+      
+      # prime the output sequence
+      next_coord = 1
+      output_seq <- ""
+      
+      # iterate over all difference coordinates 
+      for(coord in coords_diff){
+        output_seq <- paste(output_seq, substr(sequence, next_coord, coord-1),'(', substr(wt_site_assay, coord, coord), '/', substr(sequence, coord, coord), ')', sep = "")
+        next_coord <- coord + 1
+      }
+      
+      # add the remaining sequence
+      output_seq <- paste(output_seq, substr(sequence, next_coord, nchar(sequence)), sep = "")
+      
+      # get data and make the sequence header
+      new_codon <- substr(sequence, codon_pos[1], codon_pos[length(codon_pos)]) 
+      
+      oligo_name <- paste(">", gene, " ", mutation, " (", orig_codon, " => ", new_codon, ") ", i, " design full sequence", sep='')
+      
+      # write the lines for this sequence to the file
+      write_lines(c(oligo_name, output_seq), "PrimeDesign_inputs.txt", append = TRUE)
+      
+      # generate trimmed version of the sequence
+      sequence_trim <- substr(sequence, max(1, codon_pos[1]-248), min(nchar(wt_site_assay), codon_pos[1] + 248 ) )
+      
+      write_lines(c(oligo_name, sequence_trim), "pegFinder_inputs.txt", append = TRUE)
+    } # end of the main for-loop
+    
+  } # end of function
   
   ########################################
   # Codon mutations code
@@ -2585,7 +2671,7 @@ server <- function(input, output, session) {
         if(!PAM_muts_flag){
           
           # perform a search for overlapping codons based on sgRNA orientation        
-          if(input$oriented == "antisense"){
+          if(input$oriented == "anti"){
             
             # iterate over all_codons inside 
             for(codon in all_codons){
@@ -4154,17 +4240,38 @@ server <- function(input, output, session) {
       HTML(strategyHTML)
     })
     
-    # download handler
+    # oligo download handler
     output$download_oligos <- downloadHandler(
       filename = function() {
         paste0("oligo_report", ".txt")
       },
       
       content = function(file) {
-        write_file( read_file("oligo_designs.tsv"), file)
+        write_file( read_file("oligo_designs.txt"), file)
       }
     )
     
+    # PrimeDesign inputs download handler
+    output$download_prime_design <- downloadHandler(
+      filename = function() {
+        paste0("PrimeDesign_inputs_report", ".txt")
+      },
+      
+      content = function(file) {
+        write_file( read_file("PrimeDesign_inputs.txt"), file)
+      }
+    )
+    
+    # pegFinder inputs download handler
+    output$download_pegfinder <- downloadHandler(
+      filename = function() {
+        paste0("pegFinder_inputs_report", ".txt")
+      },
+      
+      content = function(file) {
+        write_file( read_file("pegFinder_inputs.txt"), file)
+      }
+    )
     
     
     # a function to output oligos with introduced restriction sites
@@ -4190,7 +4297,7 @@ server <- function(input, output, session) {
       
       ###############################################
       # write the report header in such a way that it overwrites the previous data
-      write_lines(paste("Report on", input$gene, input$Mutation, "knock-in design with selected options"), "oligo_designs.tsv", append = FALSE)
+      write_lines(paste("Report on", input$gene, input$Mutation, "knock-in design with selected options"), "oligo_designs.txt", append = FALSE)
       
       
       ################################################
@@ -4219,6 +4326,10 @@ server <- function(input, output, session) {
           if(input$max_number < length(outputList)){
             outputList <- outputList[1:input$max_number]
           }
+          ######################################################################
+          # write out the PE inputs data
+          writePEdesigns(input$gene, input$mutation, orig_codon, coords, outputList, forw_primer_pos, rev_primer_pos, codon_pos)
+          ######################################################################        
           
           # iterate over the list items
           lapply(1:length(outputList), function(j) {
@@ -4450,7 +4561,7 @@ server <- function(input, output, session) {
             reportString <- paste0(reportString, primerTablesText(forward_primers, reverse_primers, input$gene, input$Mutation))
             
             # write the report for the current oligo strategy
-            write_lines(reportString, "oligo_designs.tsv", append = TRUE)
+            write_lines(reportString, "oligo_designs.txt", append = TRUE)
             
             # add the final tags
             outputHTML <- paste(outputHTML, primer_tables, "</div>", sep = "")
@@ -4486,6 +4597,12 @@ server <- function(input, output, session) {
           if(input$max_number < length(PAMonlyList)){
             PAMonlyList <- PAMonlyList[1:input$max_number]
           }
+          
+          ######################################################################
+          # write out the PE inputs data
+          writePEdesigns(input$gene, input$mutation, orig_codon, coords, PAMonlyList, forw_primer_pos, rev_primer_pos, codon_pos)
+          ######################################################################        
+          
           
           # iterate each oligo design
           lapply(1:length(PAMonlyList), function(j) {
@@ -4716,7 +4833,7 @@ server <- function(input, output, session) {
             reportString <- paste0(reportString, primerTablesText(forward_primers, reverse_primers, input$gene, input$Mutation))
             
             # write the report for the current oligo strategy
-            write_lines(reportString, "oligo_designs.tsv", append = TRUE)
+            write_lines(reportString, "oligo_designs.txt", append = TRUE)
             
             # add the final tags
             outputHTML <- paste(outputHTML, primer_tables, "</div>", sep = "")
@@ -4751,6 +4868,11 @@ server <- function(input, output, session) {
           if(input$max_number < length(noPAM_REsitesList)){
             noPAM_REsitesList <- noPAM_REsitesList[1:input$max_number]
           }
+          
+          ######################################################################
+          # write out the PE inputs data
+          writePEdesigns(input$gene, input$mutation, orig_codon, coords, noPAM_REsitesList, forw_primer_pos, rev_primer_pos, codon_pos)
+          ######################################################################        
           
           
           # iterate over the list items
@@ -4968,7 +5090,7 @@ server <- function(input, output, session) {
             reportString <- paste0(reportString, primerTablesText(forward_primers, reverse_primers, input$gene, input$Mutation))
             
             # write the report for the current oligo strategy
-            write_lines(reportString, "oligo_designs.tsv", append = TRUE)
+            write_lines(reportString, "oligo_designs.txt", append = TRUE)
             
             # add the final tags
             outputHTML <- paste(outputHTML, primer_tables, "</div>", sep = "")
@@ -5005,6 +5127,12 @@ server <- function(input, output, session) {
           # get back the position data to the original state before off-setting
           codon_pos <- coords[["codon"]][1]: coords[["codon"]][2]
           pam_pos <- coords[["PAM"]][1]: coords[["PAM"]][2]
+          
+          ######################################################################
+          # write out the PE inputs data
+          writePEdesigns(input$gene, input$mutation, orig_codon, coords, CodonMutsList, forw_primer_pos, rev_primer_pos, codon_pos)
+          ######################################################################        
+          
           
           # iterate over each codon mutation
           lapply(1:length(CodonMutsList), function(j){
@@ -5204,7 +5332,7 @@ server <- function(input, output, session) {
             reportString <- paste0(reportString, primerTablesText(forward_primers, reverse_primers, input$gene, input$Mutation))
             
             # write the report for the current oligo strategy
-            write_lines(reportString, "oligo_designs.tsv", append = TRUE)
+            write_lines(reportString, "oligo_designs.txt", append = TRUE)
             
             # add the final tags
             outputHTML <- paste(outputHTML, primer_tables, "</div>", sep = "")
@@ -5226,12 +5354,25 @@ server <- function(input, output, session) {
           # list of silent REsite mutations designs
           isolate({ noPAM_REsitesList <- noPAMmuts_REsiteSilentMuts() })
           
+          # sort the list
+          noPAM_REsitesList <- sortOutputList(noPAM_REsitesList, input$oligo_sorting)
+          
+          # subset the list according to the maximum number of oligos we can consider
+          if(input$max_number < length(noPAM_REsitesList)){
+            noPAM_REsitesList <- noPAM_REsitesList[1:input$max_number]
+          }
+          
           ## 1. collect variables for AS-PCR primer designs
           forw_primer_pos <- coords[["forw_primer"]]
           rev_primer_pos <- coords[["rev_primer"]]
           
           # coordinates of the first and last target codon nucleotide change
           offset <- forw_primer_pos[1] - 1            
+          
+          ######################################################################
+          # write out the PE inputs data
+          writePEdesigns(input$gene, input$mutation, orig_codon, coords, noPAM_REsitesList, forw_primer_pos, rev_primer_pos, codon_pos)
+          ######################################################################        
           
           # iterate over all the items
           lapply(1:length(noPAM_REsitesList), function(j) {
@@ -5454,7 +5595,7 @@ server <- function(input, output, session) {
             reportString <- paste0(reportString, primerTablesText(forward_primers, reverse_primers, input$gene, input$Mutation))
             
             # write the report for the current oligo strategy
-            write_lines(reportString, "oligo_designs.tsv", append = TRUE)
+            write_lines(reportString, "oligo_designs.txt", append = TRUE)
             
             # add the final tags
             outputHTML <- paste(outputHTML, primer_tables, "</div>", sep = "")        
@@ -5468,6 +5609,14 @@ server <- function(input, output, session) {
           # codon mutations list
           isolate({ CodonMutsList <- codonMutations() })
           
+          # sort the list
+          CodonMutsList <- sortOutputList(CodonMutsList, input$oligo_sorting)
+          
+          # subset the list according to the maximum number of oligos we can consider
+          if(input$max_number < length(CodonMutsList)){
+            CodonMutsList <- CodonMutsList[1:input$max_number]
+          }
+          
           ## 1. collect variables for AS-PCR primer designs
           forw_primer_pos <- coords[["forw_primer"]]
           rev_primer_pos <- coords[["rev_primer"]]
@@ -5479,6 +5628,10 @@ server <- function(input, output, session) {
           codon_pos <- coords[["codon"]][1]: coords[["codon"]][2]
           pam_pos <- coords[["PAM"]][1]: coords[["PAM"]][2]
           
+          ######################################################################
+          # write out the PE inputs data
+          writePEdesigns(input$gene, input$mutation, orig_codon, coords, CodonMutsList, forw_primer_pos, rev_primer_pos, codon_pos)
+          ######################################################################        
           
           # iterate over each codon mutation
           lapply(1:length(CodonMutsList), function(j){
@@ -5684,7 +5837,7 @@ server <- function(input, output, session) {
             reportString <- paste0(reportString, primerTablesText(forward_primers, reverse_primers, input$gene, input$Mutation))
             
             # write the report for the current oligo strategy
-            write_lines(reportString, "oligo_designs.tsv", append = TRUE)
+            write_lines(reportString, "oligo_designs.txt", append = TRUE)
             
             # add the final tags
             outputHTML <- paste(outputHTML, primer_tables, "</div>", sep = "")
@@ -5741,6 +5894,21 @@ server <- function(input, output, session) {
     
   })
   
+  observeEvent(input$max_number, {
+    
+    if(input$run >= 1){
+      shinyjs::runjs("window.scrollTo(0,0);")  
+    }
+    
+  })
+  
+  observeEvent(input$oligo_sorting, {
+    
+    if(input$run >= 1){
+      shinyjs::runjs("window.scrollTo(0,0);")  
+    }
+    
+  }) 
   
 } # end of server
 
