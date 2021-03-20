@@ -8,11 +8,11 @@ You can run **CRISPR Knock-in Designer** online through a web interface here: [C
 # How to Run **CRISPR Knock-in Designer** locally
 You will need to have the ability to install software on the computer you are using to run **CRISPR Knock-in Designer** locally; this may require administrator privileges. 
 
-1. [Download and Install R](https://github.com/SergeyPry/knockinDesigner#1-download-and-install-r)
+### 1. [Download and Install R](https://github.com/SergeyPry/knockinDesigner#1-download-and-install-r)
 
-2. [Download and Install RStudio](https://github.com/SergeyPry/knockinDesigner#2-download-and-install-rstudio-optional)
+### 2. [Download and Install RStudio](https://github.com/SergeyPry/knockinDesigner#2-download-and-install-rstudio-optional)
 
-3. [Run CRISPR Knock-in Designer locally](https://github.com/SergeyPry/knockinDesigner#3-run-crispr-knock-in-designer-locally)
+### 3. [Run CRISPR Knock-in Designer locally](https://github.com/SergeyPry/knockinDesigner#3-run-crispr-knock-in-designer-locally)
 
 
 ## 1. Download and Install R
