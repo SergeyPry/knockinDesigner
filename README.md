@@ -8,19 +8,17 @@ You can run **CRISPR Knock-in Designer** online through a web interface here: [C
 # How to Run **CRISPR Knock-in Designer** locally
 You will need to have the ability to install software on the computer you are using to run **CRISPR Knock-in Designer** locally; this may require administrator privileges. 
 
-### 1. [Download and Install R](https://github.com/SergeyPry/knockinDesigner#1-download-and-install-r)
+1. [Download and Install R](https://github.com/SergeyPry/knockinDesigner#1-download-and-install-r)
 
-### 2. [Download and Install RStudio](https://github.com/SergeyPry/knockinDesigner#2-download-and-install-rstudio-optional)
+2. [Download and Install RStudio](https://github.com/SergeyPry/knockinDesigner#2-download-and-install-rstudio-optional)
 
-### 3. [Run CRISPR Knock-in Designer locally](https://github.com/SergeyPry/knockinDesigner#3-run-crispr-knock-in-designer-locally)
+3. [Run CRISPR Knock-in Designer locally](https://github.com/SergeyPry/knockinDesigner#3-run-crispr-knock-in-designer-locally)
 
 
 ## 1. Download and Install R
 **CRISPR Knock-in Designer** has been tested directly with 3.5 and 3.6 versions of R, but can be expected to work with any version of R. 
 
-Download R for your appropriate operating system:
-
-[CRAN website for R Download](https://cran.r-project.org/)
+Download R for your appropriate operating system: [CRAN website for R Download](https://cran.r-project.org/)
 Once you have downloaded the R installer, run it to install R.
 
 The most recent R version for Windows that we directly tested is available from [R 3.6.3 download page](https://cran.r-project.org/bin/windows/base/old/3.6.3/).
