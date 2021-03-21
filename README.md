@@ -1,7 +1,8 @@
 # CRISPR Knock-in Designer 
 This is a repository for the **CRISPR Knock-in Designer** tool.
 
-You can run **CRISPR Knock-in Designer** online through a web interface here: [CRISPR Knock-in Designer](https://crisprtools.shinyapps.io/knockinDesigner/)
+You can run **CRISPR Knock-in Designer** online through a web interface here: [CRISPR Knock-in Designer](https://crisprtools.shinyapps.io/knockinDesigner/).
+The instructions and explanations of what the online version of the tool does are available on its website.
  
 ### If you already have R and/or RStudio installed, you can immediately start running **CRISPR Knock-in Designer** locally.
 
@@ -61,15 +62,40 @@ BiocManager::install("Biostrings")
 
 ### Run this code every time you want to use the tool, including the first time:
 
+The following code runs the main version of the **CRISPR Knock-in Designer** app locally.
 ```
 #Load Shiny in the R/RStudio Environment
 library(shiny)
 
 #Retrieve, load, and run main CRISPR Knock-in Designer app from GitHub
 runGitHub("knockinDesigner", "SergeyPry")
-
-#Retrieve, load, and run tp53 R144H CRISPR Knock-in Designer app from GitHub
-runGitHub("knockinDesigner", "SergeyPry", subdir = "tp53_R144H")
 ```
+
+If you want to run one of the demo versions of the app with data embedded in the code, please try one of the following lines.
+```
+#Load Shiny in the R/RStudio Environment
+library(shiny)
+
+#Retrieve, load, and run tp53 R144H CRISPR Knock-in Designer app demo from GitHub
+runGitHub("knockinDesigner", "SergeyPry", subdir = "tp53_R144H")
+
+#Retrieve, load, and run lmna R471L CRISPR Knock-in Designer app demo from GitHub
+runGitHub("knockinDesigner", "SergeyPry", subdir = "lmna_R471L")
+
+#Retrieve, load, and run cacna1c G419R CRISPR Knock-in Designer app demo from GitHub
+runGitHub("knockinDesigner", "SergeyPry", subdir = "cacna1c_G419R")
+
+#Retrieve, load, and run iqgap1 R495S CRISPR Knock-in Designer app demo from GitHub
+runGitHub("knockinDesigner", "SergeyPry", subdir = "iqgap1_R495S")
+
+#Retrieve, load, and run lef1 G179V CRISPR Knock-in Designer app demo from GitHub
+runGitHub("knockinDesigner", "SergeyPry", subdir = "lef1_G179V")
+
+#Retrieve, load, and run tp53 S277R CRISPR Knock-in Designer app demo from GitHub
+runGitHub("knockinDesigner", "SergeyPry", subdir = "tp53_S277R")
+```
+
+The alternative to the code above is to download the entire repository, go to the appropriate folder on your own computer, open an app.R file in RStudio and run it.
+
 
 You're all set!
