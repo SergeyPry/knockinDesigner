@@ -23,7 +23,13 @@ ui <- shinyUI(fluidPage(
   useShinyFeedback(), # include shinyFeedback
   
   tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "bootstrap.css"),
-            tags$style(HTML(".shiny-output-error-validation {color: green;font-size: 20px;}"))),
+            tags$style(HTML(".shiny-output-error-validation {color: green;font-size: 20px;}")),
+            tags$style("body {
+                          -moz-transform: scale(0.95 0.95); /* Moz-browsers */
+                          zoom: 0.95; /* Other non-webkit browsers */
+                          zoom: 95%; /* Webkit browsers */
+                          }"),
+            ),
   
   
   HTML('<div class="row"><div style="background: #325d88; width: 100%; height: 100px; text-indent: 10px; line-height: 80px; font-size: 35px; text-align: center; color: white; text-transform: none; "><img src="knockin_logo2.png" style="float:left; height="100px"; width="223px">CRISPR Knock-in Designer</div></div>'),
@@ -154,16 +160,16 @@ ui <- shinyUI(fluidPage(
                   tabPanel(p(class = "panel-title",style="width: 100%, font-size: 14px; color: blue", "Results"), value = "Results", 
                           
                            conditionalPanel(
-                             condition = "input.run == true",
+                             condition = "input.run != 0",
                              
                              withSpinner(uiOutput('strategyCoords'), type = 4), 
                              
                              tags$p(),
                              
                              fluidRow(
-                               column( 4, withSpinner(downloadButton(outputId = "download_oligos", label = "Download oligo designs", class="btn btn-success",  style="width: 90%; font-size: 18px; text-transform: none;"), type = 0)),             # oligo results
-                               column( 4, withSpinner(downloadButton(outputId = "download_prime_design", label = "Download PrimeDesign inputs", class="btn btn-success",  style="width: 95%; font-size: 18px; text-transform: none;"), type = 0)), # PrimeDesign inputs
-                               column( 4, withSpinner(downloadButton(outputId = "download_pegfinder", label = "Download pegFinder inputs", class="btn btn-success",  style="width: 95%; font-size: 18px; text-transform: none;"), type = 0)),
+                               column( 4, withSpinner(downloadButton(outputId = "download_oligos", label = "Download oligo designs", class="btn btn-success",  style="width: 90%; font-size: 18px; text-transform: none;"), type = 4)),             # oligo results
+                               column( 4, withSpinner(downloadButton(outputId = "download_prime_design", label = "Download PrimeDesign inputs", class="btn btn-success",  style="width: 95%; font-size: 18px; text-transform: none;"), type = 4)), # PrimeDesign inputs
+                               column( 4, withSpinner(downloadButton(outputId = "download_pegfinder", label = "Download pegFinder inputs", class="btn btn-success",  style="width: 95%; font-size: 18px; text-transform: none;"), type = 4)),
                              ),
 
                              fluidRow(
@@ -227,7 +233,7 @@ server <- function(input, output, session) {
     }
     
     # the input has been submitted but the Mutation input was empty      
-    if(input$run & str_trim(input$Mutation) == ""){
+    if( (input$run >= 1) & str_trim(input$Mutation) == ""){
       
       feedbackWarning(
         inputId = "Mutation",
@@ -246,7 +252,7 @@ server <- function(input, output, session) {
   observeEvent(input$CDS, {
     
     # the input has been submitted but the CDS input was empty      
-    if(input$run & str_trim(input$CDS) == ""){
+    if( (input$run >= 1) & str_trim(input$CDS) == ""){
       
       feedbackWarning(
         inputId = "CDS",
@@ -287,7 +293,7 @@ server <- function(input, output, session) {
   observeEvent(input$exon, {
     
     # the input has been submitted but the exon input was empty      
-    if(input$run & str_trim(input$exon) == ""){
+    if( (input$run >= 1) & str_trim(input$exon) == ""){
       
       feedbackWarning(
         inputId = "exon",
@@ -385,7 +391,7 @@ server <- function(input, output, session) {
   observeEvent(input$forw_primer, {
     
     # the input has been submitted but the forward primer input was empty      
-    if(input$run & str_trim(input$forw_primer) == ""){
+    if( (input$run >= 1) & str_trim(input$forw_primer) == ""){
       
       feedbackWarning(
         inputId = "forw_primer",
@@ -436,7 +442,7 @@ server <- function(input, output, session) {
   observeEvent(input$rev_primer, {
     
     # the input has been submitted but the reverse primer input was empty      
-    if(input$run & str_trim(input$rev_primer) == ""){
+    if((input$run >= 1) & str_trim(input$rev_primer) == ""){
       
       feedbackWarning(
         inputId = "rev_primer",
@@ -487,7 +493,7 @@ server <- function(input, output, session) {
   observeEvent(input$sgRNA_seq, {
     
     # the input has been submitted but the sgRNA sequence input was empty      
-    if(input$run & str_trim(input$sgRNA_seq) == ""){
+    if( (input$run >= 1) & str_trim(input$sgRNA_seq) == ""){
       
       feedbackWarning(
         inputId = "sgRNA_seq",
@@ -1052,7 +1058,9 @@ server <- function(input, output, session) {
       
       # get the basic input information
       trID <- str_trim(input$transcriptID)
-      trID <- unlist(str_split(trID, '\\.'))[1]
+      
+      # in some species, the last '.' and number after it carry important information
+      #trID <- unlist(str_split(trID, '\\.\\d*$'))[1]
       
       # shiny::validate the Ensembl transcript ID
       #shiny::validate( need(str_detect(trID, "ENS[A-Z]{0,3}T[0-9]{11}"), "Please enter a valid Ensembl Transcript ID") )
@@ -1395,12 +1403,18 @@ server <- function(input, output, session) {
           phase <- phase1
         }else if(correct_i == 2){
           phase <- phase2
+        } else{
+          phase = 0
         }
         
         
+        ###############################################
+        # validate phase == 0 as a non-specific problem 
+        ###############################################
+        shiny::validate(need( phase != 0, "A mutation strategy could not be designed for this codon. Check your guide RNA orientation."))  
+        
         # targetAA
         targetAA <- substr(mutString, nchar(mutString), nchar(mutString))
-        
         phase_results <- find_overlapCodon_mutantCodons(codon, phase, targetAA, GENETIC_CODE, REV_GENETIC_CODE)
         
         
@@ -1491,7 +1505,7 @@ server <- function(input, output, session) {
       }
       
       
-    }# end of else for manual data input
+    } # end of else for manual data input
     
     # generate a genomicString variable
     genomicString <- paste(intron5_input, exon_input, intron3_input, sep="")
@@ -4328,7 +4342,7 @@ server <- function(input, output, session) {
           # write out the PE inputs data
           writePEdesigns(input$gene, input$mutation, orig_codon, coords, outputList, forw_primer_pos, rev_primer_pos, codon_pos)
           ######################################################################        
-
+          
           # iterate over the list items
           lapply(1:length(outputList), function(j) {
             
@@ -4872,7 +4886,7 @@ server <- function(input, output, session) {
           writePEdesigns(input$gene, input$mutation, orig_codon, coords, noPAM_REsitesList, forw_primer_pos, rev_primer_pos, codon_pos)
           ######################################################################        
           
-        
+          
           # iterate over the list items
           lapply(1:length(noPAM_REsitesList), function(j) {
             
@@ -5145,7 +5159,7 @@ server <- function(input, output, session) {
             mutated <- CodonMutsList[[j]][["codon_diffs_coords"]]
             
             # get new replacement codon sequence
-            new_codon <- substr(sequence, codon_pos[1], codon_pos[3])
+            new_codon <- substr(sequence, codon_pos[1], codon_pos[length(codon_pos)])
             
             # reverseComplement the sequence if the orientation is different
             if(input$orientedOligo == "anti"){
@@ -5351,7 +5365,7 @@ server <- function(input, output, session) {
           
           # list of silent REsite mutations designs
           isolate({ noPAM_REsitesList <- noPAMmuts_REsiteSilentMuts() })
-
+          
           # sort the list
           noPAM_REsitesList <- sortOutputList(noPAM_REsitesList, input$oligo_sorting)
           
@@ -5386,7 +5400,7 @@ server <- function(input, output, session) {
             codon_muts <- noPAM_REsitesList[[j]][["codon_diffs_coords"]]
             
             # get new replacement codon sequence
-            new_codon <- substr(sequence, codon_pos[1], codon_pos[3])
+            new_codon <- substr(sequence, codon_pos[1], codon_pos[length(codon_pos)])
             
             # get the codon mutation that introduced a restriction site
             if( "enzymes" %in% names(noPAM_REsitesList[[j]])){
@@ -5644,7 +5658,7 @@ server <- function(input, output, session) {
             mutated <- CodonMutsList[[j]][["codon_diffs_coords"]]
             
             # get new replacement codon sequence
-            new_codon <- substr(sequence, codon_pos[1], codon_pos[3])
+            new_codon <- substr(sequence, codon_pos[1], codon_pos[length(codon_pos)])
             
             # reverseComplement the sequence if the orientation is different
             if(input$orientedOligo == "anti"){
