@@ -2151,19 +2151,30 @@ server <- function(input, output, session) {
     outputList
   }
   
-  # function to 
+  # function to write prime editing inputs designs
   writePEdesigns <- function(gene, mutation, orig_codon, coords, outputList, forw_primer_pos, rev_primer_pos, codon_pos){
     
     ################# PrimeDesign and pegFinder inputs file generation ################
     
     # write the report header in such a way that it overwrites the previous data
-    write_lines(paste("PrimeDesign input sequences for", gene, mutation, "knock-in designs"), "PrimeDesign_inputs.txt", append = FALSE)
+    prime_design_file <-  paste0(tempdir(), '\\', 'PrimeDesign_inputs.txt')
+    write_lines(paste("PrimeDesign input sequences for", gene, mutation, "knock-in designs"), path = prime_design_file, append = FALSE)
     
     # write the report header in such a way that it overwrites the previous data
-    write_lines(paste("pegFinder input sequences for", gene, mutation, "knock-in designs"), "pegFinder_inputs.txt", append = FALSE)
+    pegfinder_file <- paste0(tempdir(), '\\', 'pegFinder_inputs.txt')
+    write_lines(paste("pegFinder input sequences for", gene, mutation, "knock-in designs"), path = pegfinder_file, append = FALSE)
     
     # get site assay wild-type sequence
-    wt_site_assay = toupper(substr(coords[["sequence"]], forw_primer_pos[1], rev_primer_pos[2]))
+    wt_site_assay <- toupper(coords[["sequence"]])
+    
+    # get the first mutant sequence
+    test_sequence <- toupper(outputList[[1]][["site_assay"]])
+    
+    # check if the wild-type site assay is bigger than the mutant
+    if(nchar(wt_site_assay) > nchar(test_sequence)){
+      #subset to the site assay
+      wt_site_assay <- substr(wt_site_assay, forw_primer_pos[1], rev_primer_pos[2])
+    } 
     
     oligo_name <- paste(">", gene, " wild-type site assay sequence", sep='')
     
@@ -2171,14 +2182,18 @@ server <- function(input, output, session) {
     wt_site_assay_trim <- substr(wt_site_assay, max(1, codon_pos[1]-248), min(nchar(wt_site_assay), codon_pos[1] + 248) )
     
     # write the lines for this sequence to the file
-    write_lines(c(oligo_name, wt_site_assay_trim), "pegFinder_inputs.txt", append = TRUE)
-    
+    write_lines(c(oligo_name, wt_site_assay_trim), path = pegfinder_file, append = TRUE)
     
     # iterate to write the sequences to file for PrimeDesign
     for(i in 1:length(outputList)){
       
       # get mutant site assay sequence
       sequence <- toupper(outputList[[i]][["site_assay"]])
+      
+      # test if sequence is longer that the wild-type sequence 
+      if(nchar(sequence) > nchar(wt_site_assay)){
+        sequence <- substr(sequence, forw_primer_pos[1], rev_primer_pos[2])
+      }
       
       # get all coordinates of differences
       coords_diff <-  getPrimerDiffs(wt_site_assay, sequence)
@@ -2201,13 +2216,16 @@ server <- function(input, output, session) {
       
       oligo_name <- paste(">", gene, " ", mutation, " (", orig_codon, " => ", new_codon, ") ", i, " design full sequence", sep='')
       
+      
       # write the lines for this sequence to the file
-      write_lines(c(oligo_name, output_seq), "PrimeDesign_inputs.txt", append = TRUE)
+      write_lines(c(oligo_name, output_seq), path = prime_design_file, append = TRUE)
       
       # generate trimmed version of the sequence
       sequence_trim <- substr(sequence, max(1, codon_pos[1]-248), min(nchar(wt_site_assay), codon_pos[1] + 248 ) )
       
-      write_lines(c(oligo_name, sequence_trim), "pegFinder_inputs.txt", append = TRUE)
+      write_lines(c(oligo_name, sequence_trim), path = pegfinder_file, append = TRUE)
+      
+      
     } # end of the main for-loop
     
   } # end of function
@@ -5926,6 +5944,5 @@ server <- function(input, output, session) {
   }) 
   
 } # end of server
-
 # Run the application 
 shinyApp(ui = ui, server = server)
